@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from config import ADMIN_IDS, REGION_MAP
 from database import get_user, add_task, get_tasks, complete_task, delete_task, get_client_by_id
-from keyboards import tasks_menu_kb, task_action_kb, cancel_kb, confirm_delete_kb, main_menu_kb
+from keyboards import tasks_menu_kb, task_action_kb, cancel_kb, confirm_delete_kb, admin_main_menu_kb, user_main_menu_kb
 
 # ─── HOLATLAR ─────────────────────────────────────────────────────────────────
 TASK_TITLE, TASK_CLIENT, TASK_DEADLINE, TASK_DESC = range(10, 14)
@@ -138,7 +138,7 @@ async def task_desc(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(
         text, parse_mode="Markdown",
-        reply_markup=main_menu_kb(is_admin=is_admin)
+        reply_markup=admin_main_menu_kb() if is_admin else user_main_menu_kb()
     )
     ctx.user_data.clear()
     return ConversationHandler.END

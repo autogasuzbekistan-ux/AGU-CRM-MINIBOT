@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-DB_PATH = os.getenv("DB_PATH", "crm_bot.db")
+DB_PATH   = os.getenv("DB_PATH", "crm_bot.db")
 
 _admin_raw = os.getenv("ADMIN_IDS", "")
-ADMIN_IDS = [int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()]
+ADMIN_IDS  = [int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()]
 
-# Uzbekiston viloyatlari
+# ─── UZBEKISTON VILOYATLARI ───────────────────────────────────────────────────
 REGIONS = [
     {"id": 1,  "name": "Andijon",           "code": "AND"},
     {"id": 2,  "name": "Buxoro",            "code": "BUX"},
@@ -26,21 +26,33 @@ REGIONS = [
     {"id": 13, "name": "Toshkent viloyati", "code": "TOS"},
     {"id": 14, "name": "Toshkent shahri",   "code": "TSH"},
 ]
-
-REGION_MAP = {r["id"]: r["name"] for r in REGIONS}
+REGION_MAP      = {r["id"]: r["name"] for r in REGIONS}
 REGION_CODE_MAP = {r["id"]: r["code"] for r in REGIONS}
 
-# Savdo turlari
-SAVDO_TURLARI = ["Chakana", "Ulgurji", "Online", "B2B", "Service", "Boshqa"]
+# ─── SAVDO TURLARI ─────────────────────────────────────────────────────────────
+# Asosiy 3 tur
+SAVDO_TURLARI = ["Ulgurji savdo", "Chakana savdo", "Servis"]
 
-# Daraja hisobi ($)
-def calculate_daraja(savdo: float) -> str:
-    if 1_000 <= savdo <= 10_000:
-        return "🥉 1-daraja"
-    elif 10_001 <= savdo <= 30_000:
-        return "🥈 2-daraja"
-    elif 30_001 <= savdo <= 50_000:
-        return "🥇 3-daraja"
-    elif savdo > 50_000:
-        return "💎 VIP"
-    return "🆕 Yangi"
+# Har bir tur uchun kichik turlar
+SAVDO_SUBTURLARI = {
+    "Ulgurji savdo": [
+        "5,000 – 10,000$",
+        "10,001 – 30,000$",
+        "30,001 – 50,000$",
+    ],
+    "Chakana savdo": [
+        "Oylik xaridor",
+        "Referral (mijoz olib keluvchi)",
+    ],
+    "Servis": [
+        "Ehtiyot qism (boshqa servicedan)",
+        "Servis uchun xaridor",
+    ],
+}
+
+# Excel katakchalar rangi (RRGGBB hex)
+SAVDO_COLORS = {
+    "Ulgurji savdo": "92D050",   # yashil
+    "Chakana savdo": "FFC000",   # to'q sariq
+    "Servis":        "00B0F0",   # moviy
+}
