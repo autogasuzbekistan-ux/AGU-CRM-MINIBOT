@@ -146,10 +146,20 @@ async def add_izoh(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     return await _save_client(update, ctx)
 
 async def add_izoh_skip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    if update.callback_query:
+        await update.callback_query.answer()
     ctx.user_data["izoh"] = ""
     return await _save_client(update, ctx)
+
+
+async def confirm_client_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer("✅ Tasdiqlandi!")
+    is_admin = _is_admin(update.effective_user.id)
+    await query.message.reply_text(
+        "✅ Mijoz muvaffaqiyatli tasdiqlandi!",
+        reply_markup=_main_kb(is_admin),
+    )
 
 async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user

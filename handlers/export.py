@@ -268,6 +268,100 @@ async def send_daily_report(app):
             import logging
             logging.getLogger(__name__).warning(f"22:00 hisobot xato (admin {admin_id}): {e}")
 
+# ─── VAZIFALAR EXCEL VA BILDIRISHNOMA ─────────────────────────────────────────
+
+_TASK_HEADERS    = ["No", "Sarlavha", "Mijoz", "Muddat", "Tavsif", "Viloyat"]
+_TASK_COL_WIDTHS = [5, 30, 25, 20, 35, 20]
+
+
+def build_task_excel(tasks: list) -> "Workbook":
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Vazifalar"
+
+    # Header
+    for col, h in enumerate(_TASK_HEADERS, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill      = _HEADER_FILL
+        cell.font      = _HEADER_FONT
+        cell.border    = _CELL_BORDER
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[1].height = 28
+    ws.freeze_panes = "A2"
+    for col, width in enumerate(_TASK_COL_WIDTHS, 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    # Rows
+    for i, t in enumerate(tasks, 1):
+        row_fill = _ALT_FILL if i % 2 == 0 else _DEFAULT_FILL
+        values = [
+            i,
+            t.get("sarlavha") or "",
+            t.get("client_name") or "—",
+            t.get("muddat") or "—",
+            t.get("tavsif") or "—",
+            t.get("region_name") or "—",
+        ]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=i + 1, column=col, value=val)
+            cell.border    = _CELL_BORDER
+            cell.fill      = row_fill
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+            if col == 1:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Total row
+    total_row = len(tasks) + 2
+    tc = ws.cell(row=total_row, column=1, value="Jami:")
+    tc.fill = _TOTAL_FILL; tc.font = _TOTAL_FONT
+    tc.alignment = Alignment(horizontal="center")
+    cc = ws.cell(row=total_row, column=2, value=f"{len(tasks)} ta vazifa")
+    cc.fill = _TOTAL_FILL; cc.font = _TOTAL_FONT
+    for col in range(3, len(_TASK_HEADERS) + 1):
+        ws.cell(row=total_row, column=col).fill = _TOTAL_FILL
+    return wb
+
+
+async def notify_admins_new_task(bot, task_id: int, sarlavha: str, client_name: str,
+                                  muddat: str, tavsif: str, region_name: str, added_by: str):
+    """Yangi muddatli vazifa qo'shilganda adminlarga Excel bilan darhol xabar beradi."""
+    today = date.today().strftime("%Y-%m-%d")
+    task_row = [{
+        "sarlavha":    sarlavha,
+        "client_name": client_name,
+        "muddat":      muddat,
+        "tavsif":      tavsif,
+        "region_name": region_name,
+    }]
+    wb     = build_task_excel(task_row)
+    buffer = io.BytesIO()
+    wb.save(buffer)
+
+    caption = (
+        f"📋 *Yangi eslatma vazifasi qo'shildi!*\n\n"
+        f"📝 *{sarlavha}*\n"
+        f"🔗 Mijoz: {client_name}\n"
+        f"🗓 Muddat: {muddat}\n"
+        f"📄 Tavsif: {tavsif or '—'}\n"
+        f"🗺 Viloyat: {region_name}\n"
+        f"👤 Qo'shdi: {added_by}\n"
+        f"ID: `{task_id}`"
+    )
+    import logging
+    for admin_id in ADMIN_IDS:
+        try:
+            buffer.seek(0)
+            await bot.send_document(
+                chat_id=admin_id,
+                document=buffer,
+                filename=f"Vazifa_{task_id}_{today}.xlsx",
+                caption=caption,
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Vazifa bildirishnoma xato (admin {admin_id}): {e}")
+
+
 # ─── MUDDATI O'TGAN VAZIFALAR ─────────────────────────────────────────────────
 
 async def get_overdue_tasks_and_notify(app):

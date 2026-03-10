@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from config import ADMIN_IDS, REGION_MAP
 from database import get_user, add_task, get_tasks, complete_task, delete_task, get_client_by_id
+from handlers.export import notify_admins_new_task
 from keyboards import (
     tasks_menu_kb, task_action_kb, cancel_kb, confirm_delete_kb,
     admin_main_menu_kb, user_main_menu_kb,
@@ -113,12 +114,13 @@ async def task_desc(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if not c:
             client_id = None
 
+    muddat = ctx.user_data.get("task_deadline")
     task_id = await add_task({
         "sarlavha":   ctx.user_data["task_title"],
         "tavsif":     ctx.user_data.get("task_desc", ""),
         "client_id":  client_id,
         "region_id":  region_id,
-        "muddat":     ctx.user_data.get("task_deadline"),
+        "muddat":     muddat,
         "qoshgan_id": user.id,
     })
     is_admin = _is_admin(user.id)
@@ -126,12 +128,32 @@ async def task_desc(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ *Vazifa qo'shildi!*\n\n"
         f"📝 *{ctx.user_data['task_title']}*\n"
-        f"🗓 Muddat: {ctx.user_data.get('task_deadline') or '—'}\n"
+        f"🗓 Muddat: {muddat or '—'}\n"
         f"📄 Tavsif: {ctx.user_data.get('task_desc') or '—'}\n"
         f"ID: `{task_id}`",
         parse_mode="Markdown",
         reply_markup=admin_main_menu_kb() if is_admin else user_main_menu_kb(),
     )
+
+    # Muddatli vazifa bo'lsa adminlarga darhol Excel bilan xabar berish
+    if muddat:
+        client_name = "—"
+        if client_id:
+            c = await get_client_by_id(client_id)
+            if c:
+                client_name = c["ism"]
+        region_name = REGION_MAP.get(region_id, "?")
+        await notify_admins_new_task(
+            ctx.bot,
+            task_id=task_id,
+            sarlavha=ctx.user_data["task_title"],
+            client_name=client_name,
+            muddat=muddat,
+            tavsif=ctx.user_data.get("task_desc", ""),
+            region_name=region_name,
+            added_by=user.full_name or user.username or str(user.id),
+        )
+
     ctx.user_data.clear()
     return ConversationHandler.END
 

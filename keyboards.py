@@ -124,7 +124,8 @@ def client_detail_kb(client_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✏️ Tahrirlash",       callback_data=f"edit_{client_id}"),
          InlineKeyboardButton("🗑 O'chirish",         callback_data=f"del_{client_id}")],
-        [InlineKeyboardButton("✅ Vazifa qo'shish",  callback_data=f"task_for_{client_id}")],
+        [InlineKeyboardButton("✅ Vazifa qo'shish",  callback_data=f"task_for_{client_id}"),
+         InlineKeyboardButton("✔️ Tasdiqlash",        callback_data=f"confirm_{client_id}")],
     ])
 
 def edit_fields_kb(client_id: int) -> InlineKeyboardMarkup:

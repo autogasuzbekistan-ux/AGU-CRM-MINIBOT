@@ -24,6 +24,7 @@ from handlers.clients import (
     edit_start_callback, edit_field_callback,
     edit_turi_cb, edit_subturi_cb, edit_value_received, edit_start_ask_id,
     delete_callback, delete_confirm_callback, delete_ask_id, delete_id_received,
+    confirm_client_callback,
     ADD_ISM, ADD_TELEFON, ADD_MANZIL, ADD_KASB,
     ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI, ADD_IZOH,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
@@ -51,7 +52,7 @@ from keyboards import (
     BTN_ADD_TASK, BTN_ACTIVE_TASKS, BTN_DONE_TASKS,
     BTN_STATS_GENERAL, BTN_STATS_REGION, BTN_STATS_TYPE, BTN_STATS_SUB,
     BTN_EXPORT_MY, BTN_EXPORT_ALL, BTN_EXPORT_CHOOSE,
-    BTN_BACK, BTN_CANCEL,
+    BTN_BACK, BTN_CANCEL, BTN_SKIP,
 )
 
 logging.basicConfig(
@@ -86,6 +87,7 @@ def build_add_client_conv() -> ConversationHandler:
             ADD_SAVDO_TURI:    [CallbackQueryHandler(add_savdo_turi_cb,    pattern=r"^turi_")],
             ADD_SAVDO_SUBTURI: [CallbackQueryHandler(add_savdo_subturi_cb, pattern=r"^subturi_")],
             ADD_IZOH: [
+                MessageHandler(_txt(BTN_SKIP), add_izoh_skip),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_izoh),
                 CallbackQueryHandler(add_izoh_skip, pattern="^skip_izoh$"),
             ],
@@ -233,6 +235,7 @@ def main():
     app.add_handler(CallbackQueryHandler(task_complete_callback,     pattern=r"^task_complete_\d+$"))
     app.add_handler(CallbackQueryHandler(task_delete_callback,       pattern=r"^task_del_\d+$"))
     app.add_handler(CallbackQueryHandler(task_delete_confirm_callback, pattern=r"^deltask_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(confirm_client_callback,      pattern=r"^confirm_\d+$"))
 
     # ── ReplyKeyboard text handlerlar (group=1) ───────────────────────────────
     def add_txt(pattern: str, handler):
