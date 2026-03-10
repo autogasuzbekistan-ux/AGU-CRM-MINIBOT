@@ -134,7 +134,16 @@ def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN .env faylida topilmadi!")
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .concurrent_updates(True)
+        .read_timeout(30)
+        .write_timeout(30)
+        .connect_timeout(30)
+        .pool_timeout(30)
+        .build()
+    )
 
     # ConversationHandlerlar (AVVAL ro'yxatga olinishi shart)
     app.add_handler(build_add_client_conv())
