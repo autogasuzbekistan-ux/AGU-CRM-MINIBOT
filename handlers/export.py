@@ -195,7 +195,7 @@ async def _do_export(update: Update, ctx: ContextTypes.DEFAULT_TYPE, region_id: 
         )
         return
 
-    wb     = build_full_excel(list(clients), region_id)
+    wb     = build_full_excel([dict(c) for c in clients], region_id)
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
@@ -221,7 +221,7 @@ async def _do_export(update: Update, ctx: ContextTypes.DEFAULT_TYPE, region_id: 
 async def send_daily_report(app):
     from config import ADMIN_IDS
     today   = date.today().strftime("%Y-%m-%d")
-    clients = await get_today_clients(region_id=None)
+    clients = [dict(c) for c in await get_today_clients(region_id=None)]
 
     for admin_id in ADMIN_IDS:
         try:
