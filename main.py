@@ -1,4 +1,5 @@
 import re
+import asyncio
 import logging
 from telegram import Update
 from telegram.ext import (
@@ -174,11 +175,14 @@ def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN .env faylida topilmadi!")
 
+    # 1. DB ni oldin ishga tushirish (alohida, muammosiz)
+    asyncio.run(init_db())
+    logger.info("✅ DB tayyor")
+
     scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
 
-    # post_init: PTB o'z event loop'ini yaratgandan keyin chaqiradi
+    # post_init: faqat scheduler uchun (DB shart emas)
     async def _post_init(application: Application) -> None:
-        await init_db()
         scheduler.add_job(
             send_daily_report, "cron", hour=22, minute=0, args=[application]
         )
@@ -186,9 +190,8 @@ def main():
             get_overdue_tasks_and_notify, "interval", minutes=30, args=[application]
         )
         scheduler.start()
-        logger.info("✅ DB va Scheduler tayyor")
+        logger.info("✅ Scheduler tayyor")
 
-    # Application — post_init builder orqali (eng ishonchli usul)
     app = (
         Application.builder()
         .token(BOT_TOKEN)
