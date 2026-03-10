@@ -217,10 +217,18 @@ def main():
     app.add_handler(CommandHandler("mijoz",  client_detail_command))
     app.add_handler(CommandHandler("vazifa", task_detail_command))
 
+    # ── DEBUG: barcha callbacklarni ushlash (muammoni aniqlash uchun) ──────────
+    async def _debug_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        data = update.callback_query.data if update.callback_query else "?"
+        logger.warning(f"[DEBUG] Callback keldi: '{data}'")
+
+    app.add_handler(CallbackQueryHandler(_debug_cb), group=99)
+
     # ── Inline callback handlerlar ────────────────────────────────────────────
     app.add_handler(CallbackQueryHandler(noop_callback, pattern="^noop$"))
 
     async def region_router(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        logger.info(f"[region_router] data={update.callback_query.data}")
         if ctx.user_data.get("export_choosing"):
             return await export_region_selected(update, ctx)
         return await handle_region_selection(update, ctx)
@@ -262,8 +270,10 @@ def main():
     add_txt(BTN_CANCEL,        handle_cancel)
 
     logger.info("✅ AGU CRM Bot ishga tushdi!")
-    # run_polling: o'zi yangi event loop yaratadi, post_init'ni uning ichida chaqiradi
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES,
+    )
 
 
 if __name__ == "__main__":
