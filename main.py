@@ -228,8 +228,12 @@ def main():
 
 
 if __name__ == "__main__":
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     async def setup():
         await init_db()
 
-    asyncio.run(setup())
+    loop.run_until_complete(setup())
     main()
