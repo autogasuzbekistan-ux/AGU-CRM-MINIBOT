@@ -1,6 +1,5 @@
 import re
 import logging
-import asyncio
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -40,9 +39,9 @@ from handlers.stats import (
 from handlers.export import (
     export_menu, export_my_region, export_all,
     export_choose_region, export_region_selected, send_daily_report,
+    get_overdue_tasks_and_notify,
 )
 from handlers.admin import admin_users, admin_send_report
-from handlers.export import get_overdue_tasks_and_notify
 from keyboards import (
     BTN_CLIENTS, BTN_STATS, BTN_TASKS, BTN_EXPORT, BTN_REGION,
     BTN_USERS, BTN_REPORT,
@@ -60,11 +59,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # ─── CONVERSATION HANDLERLAR ──────────────────────────────────────────────────
 
 def _txt(btn: str):
-    """Tugma matni uchun Regex filter (aniq moslik)"""
     return filters.Regex(f"^{re.escape(btn)}$")
+
+def _fallbacks():
+    return [
+        MessageHandler(_txt(BTN_CANCEL), handle_cancel),
+        MessageHandler(_txt(BTN_BACK),   handle_cancel),
+    ]
 
 def build_add_client_conv() -> ConversationHandler:
     return ConversationHandler(
@@ -84,7 +89,7 @@ def build_add_client_conv() -> ConversationHandler:
                 CallbackQueryHandler(add_izoh_skip, pattern="^skip_izoh$"),
             ],
         },
-        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
+        fallbacks=_fallbacks(),
         allow_reentry=True,
         block=False,
     )
@@ -95,7 +100,7 @@ def build_search_conv() -> ConversationHandler:
         states={
             SEARCH_QUERY: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_search_query)],
         },
-        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
+        fallbacks=_fallbacks(),
         allow_reentry=True,
         block=False,
     )
@@ -114,7 +119,7 @@ def build_edit_conv() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value_received),
             ],
         },
-        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
+        fallbacks=_fallbacks(),
         allow_reentry=True,
         block=False,
     )
@@ -127,7 +132,7 @@ def build_delete_conv() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, delete_id_received),
             ],
         },
-        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
+        fallbacks=_fallbacks(),
         allow_reentry=True,
         block=False,
     )
@@ -144,20 +149,50 @@ def build_task_conv() -> ConversationHandler:
             TASK_DEADLINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, task_deadline)],
             TASK_DESC:     [MessageHandler(filters.TEXT & ~filters.COMMAND, task_desc)],
         },
-        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
+        fallbacks=_fallbacks(),
         allow_reentry=True,
         block=False,
     )
 
-# ─── ASOSIY ───────────────────────────────────────────────────────────────────
+
+# ─── XATO HANDLER ─────────────────────────────────────────────────────────────
+
+async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE):
+    logger.error("Handler xatosi!", exc_info=ctx.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                f"⚠️ Xato: {type(ctx.error).__name__}: {ctx.error}"
+            )
+        except Exception:
+            pass
+
+
+# ─── ASOSIY (SYNC) ────────────────────────────────────────────────────────────
 
 def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN .env faylida topilmadi!")
 
+    scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
+
+    # post_init: PTB o'z event loop'ini yaratgandan keyin chaqiradi
+    async def _post_init(application: Application) -> None:
+        await init_db()
+        scheduler.add_job(
+            send_daily_report, "cron", hour=22, minute=0, args=[application]
+        )
+        scheduler.add_job(
+            get_overdue_tasks_and_notify, "interval", minutes=30, args=[application]
+        )
+        scheduler.start()
+        logger.info("✅ DB va Scheduler tayyor")
+
+    # Application — post_init builder orqali (eng ishonchli usul)
     app = (
         Application.builder()
         .token(BOT_TOKEN)
+        .post_init(_post_init)
         .read_timeout(30)
         .write_timeout(30)
         .connect_timeout(30)
@@ -165,94 +200,66 @@ def main():
         .build()
     )
 
-    # ─── ConversationHandlerlar (AVVAL qo'shiladi) ────────────────────────────
+    app.add_error_handler(error_handler)
+
+    # ── ConversationHandlerlar (birinchi) ─────────────────────────────────────
     app.add_handler(build_add_client_conv())
     app.add_handler(build_search_conv())
     app.add_handler(build_edit_conv())
     app.add_handler(build_delete_conv())
     app.add_handler(build_task_conv())
 
-    # ─── Komandalar ───────────────────────────────────────────────────────────
+    # ── Komandalar ────────────────────────────────────────────────────────────
     app.add_handler(CommandHandler("start",  start))
     app.add_handler(CommandHandler("mijoz",  client_detail_command))
     app.add_handler(CommandHandler("vazifa", task_detail_command))
 
-    # ─── Inline callback handlerlar ───────────────────────────────────────────
-    app.add_handler(CallbackQueryHandler(noop_callback,                  pattern="^noop$"))
+    # ── Inline callback handlerlar ────────────────────────────────────────────
+    app.add_handler(CallbackQueryHandler(noop_callback, pattern="^noop$"))
 
-    # region_ — viloyat tanlash yoki export uchun
     async def region_router(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if ctx.user_data.get("export_choosing"):
             return await export_region_selected(update, ctx)
         return await handle_region_selection(update, ctx)
-    app.add_handler(CallbackQueryHandler(region_router,                  pattern=r"^region_"))
 
-    app.add_handler(CallbackQueryHandler(client_detail_callback,         pattern=r"^client_detail_\d+$"))
-    app.add_handler(CallbackQueryHandler(delete_callback,                pattern=r"^del_\d+$"))
-    app.add_handler(CallbackQueryHandler(delete_confirm_callback,        pattern=r"^delclient_confirm_\d+$"))
-    app.add_handler(CallbackQueryHandler(client_list,                    pattern=r"^clist_page_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_complete_callback,         pattern=r"^task_complete_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_delete_callback,           pattern=r"^task_del_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_delete_confirm_callback,   pattern=r"^deltask_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(region_router,              pattern=r"^region_"))
+    app.add_handler(CallbackQueryHandler(client_detail_callback,     pattern=r"^client_detail_\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_callback,            pattern=r"^del_\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_confirm_callback,    pattern=r"^delclient_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(client_list,                pattern=r"^clist_page_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_complete_callback,     pattern=r"^task_complete_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_delete_callback,       pattern=r"^task_del_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_delete_confirm_callback, pattern=r"^deltask_confirm_\d+$"))
 
-    # ─── ReplyKeyboard text handlerlar (group=1 — ConversationHandlerdan keyin) ─
+    # ── ReplyKeyboard text handlerlar (group=1) ───────────────────────────────
     def add_txt(pattern: str, handler):
         app.add_handler(
             MessageHandler(filters.Regex(f"^{re.escape(pattern)}$"), handler),
             group=1,
         )
 
-    # Asosiy navigatsiya
-    add_txt(BTN_CLIENTS,        clients_menu)
-    add_txt(BTN_STATS,          stats_menu)
-    add_txt(BTN_TASKS,          tasks_menu)
-    add_txt(BTN_EXPORT,         export_menu)
-    add_txt(BTN_REGION,         change_region_menu)
-    add_txt(BTN_USERS,          admin_users)
-    add_txt(BTN_REPORT,         admin_send_report)
-
-    # Mijozlar bo'limi
-    add_txt(BTN_CLIENT_LIST,    client_list)
-
-    # Vazifalar bo'limi
-    add_txt(BTN_ACTIVE_TASKS,   task_list)
-    add_txt(BTN_DONE_TASKS,     task_done_list)
-
-    # Statistika bo'limi
-    add_txt(BTN_STATS_GENERAL,  stats_general)
-    add_txt(BTN_STATS_REGION,   stats_by_region)
-    add_txt(BTN_STATS_TYPE,     stats_by_type)
-    add_txt(BTN_STATS_SUB,      stats_by_grade)
-
-    # Eksport bo'limi
-    add_txt(BTN_EXPORT_MY,      export_my_region)
-    add_txt(BTN_EXPORT_ALL,     export_all)
-    add_txt(BTN_EXPORT_CHOOSE,  export_choose_region)
-
-    # Orqaga / Bekor
-    add_txt(BTN_BACK,           back_to_main)
-    add_txt(BTN_CANCEL,         handle_cancel)
-
-    # ─── Schedulerlar ─────────────────────────────────────────────────────────
-    scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
-    scheduler.add_job(
-        send_daily_report, trigger="cron", hour=22, minute=0,
-        args=[app], id="daily_report_2200",
-    )
-    scheduler.add_job(
-        get_overdue_tasks_and_notify, trigger="interval", minutes=30,
-        args=[app], id="overdue_tasks",
-    )
+    add_txt(BTN_CLIENTS,       clients_menu)
+    add_txt(BTN_STATS,         stats_menu)
+    add_txt(BTN_TASKS,         tasks_menu)
+    add_txt(BTN_EXPORT,        export_menu)
+    add_txt(BTN_REGION,        change_region_menu)
+    add_txt(BTN_USERS,         admin_users)
+    add_txt(BTN_REPORT,        admin_send_report)
+    add_txt(BTN_CLIENT_LIST,   client_list)
+    add_txt(BTN_ACTIVE_TASKS,  task_list)
+    add_txt(BTN_DONE_TASKS,    task_done_list)
+    add_txt(BTN_STATS_GENERAL, stats_general)
+    add_txt(BTN_STATS_REGION,  stats_by_region)
+    add_txt(BTN_STATS_TYPE,    stats_by_type)
+    add_txt(BTN_STATS_SUB,     stats_by_grade)
+    add_txt(BTN_EXPORT_MY,     export_my_region)
+    add_txt(BTN_EXPORT_ALL,    export_all)
+    add_txt(BTN_EXPORT_CHOOSE, export_choose_region)
+    add_txt(BTN_BACK,          back_to_main)
+    add_txt(BTN_CANCEL,        handle_cancel)
 
     logger.info("✅ AGU CRM Bot ishga tushdi!")
-
-    # post_init: PTB'ning o'z event loop'ida init_db + scheduler ishga tushiriladi
-    async def post_init(application):
-        await init_db()   # ← PTB loop'ining ICHIDA — to'g'ri
-        scheduler.start()
-        logger.info("✅ DB va scheduler tayyor")
-
-    app.post_init = post_init
+    # run_polling: o'zi yangi event loop yaratadi, post_init'ni uning ichida chaqiradi
     app.run_polling(drop_pending_updates=True)
 
 
