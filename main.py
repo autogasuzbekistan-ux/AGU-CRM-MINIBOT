@@ -178,27 +178,24 @@ def main():
     app.add_handler(CommandHandler("vazifa", task_detail_command))
 
     # ─── Inline callback handlerlar ───────────────────────────────────────────
-    app.add_handler(CallbackQueryHandler(noop_callback,             pattern="^noop$"))
-    app.add_handler(CallbackQueryHandler(handle_region_selection,   pattern=r"^region_"))
-    app.add_handler(CallbackQueryHandler(client_detail_callback,    pattern=r"^client_detail_\d+$"))
-    app.add_handler(CallbackQueryHandler(delete_callback,           pattern=r"^del_\d+$"))
-    app.add_handler(CallbackQueryHandler(delete_confirm_callback,   pattern=r"^delclient_confirm_\d+$"))
-    app.add_handler(CallbackQueryHandler(client_list,               pattern=r"^clist_page_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_complete_callback,    pattern=r"^task_complete_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_delete_callback,      pattern=r"^task_del_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_delete_confirm_callback, pattern=r"^deltask_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(noop_callback,                  pattern="^noop$"))
 
-    # export_region: region_ callback faqat export oqimida
+    # region_ — viloyat tanlash yoki export uchun
     async def region_router(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if ctx.user_data.get("export_choosing"):
             return await export_region_selected(update, ctx)
         return await handle_region_selection(update, ctx)
-    app.add_handler(CallbackQueryHandler(region_router, pattern=r"^region_"))
+    app.add_handler(CallbackQueryHandler(region_router,                  pattern=r"^region_"))
+
+    app.add_handler(CallbackQueryHandler(client_detail_callback,         pattern=r"^client_detail_\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_callback,                pattern=r"^del_\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_confirm_callback,        pattern=r"^delclient_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(client_list,                    pattern=r"^clist_page_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_complete_callback,         pattern=r"^task_complete_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_delete_callback,           pattern=r"^task_del_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_delete_confirm_callback,   pattern=r"^deltask_confirm_\d+$"))
 
     # ─── ReplyKeyboard text handlerlar (group=1 — ConversationHandlerdan keyin) ─
-    def txt(btn: str):
-        return MessageHandler(_txt(btn), None)  # placeholder, overridden below
-
     def add_txt(pattern: str, handler):
         app.add_handler(
             MessageHandler(filters.Regex(f"^{re.escape(pattern)}$"), handler),
@@ -249,19 +246,15 @@ def main():
 
     logger.info("✅ AGU CRM Bot ishga tushdi!")
 
+    # post_init: PTB'ning o'z event loop'ida init_db + scheduler ishga tushiriladi
     async def post_init(application):
+        await init_db()   # ← PTB loop'ining ICHIDA — to'g'ri
         scheduler.start()
+        logger.info("✅ DB va scheduler tayyor")
 
     app.post_init = post_init
     app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    async def setup():
-        await init_db()
-
-    loop.run_until_complete(setup())
     main()
