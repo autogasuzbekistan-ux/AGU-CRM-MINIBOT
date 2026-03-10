@@ -218,8 +218,12 @@ def main():
         id="overdue_tasks",
     )
 
-    scheduler.start()
     logger.info("✅ AGU CRM Bot ishga tushdi! Har kecha 22:00 da hisobot yuboriladi.")
+
+    async def post_init(application):
+        scheduler.start()
+
+    app.post_init = post_init
     app.run_polling(drop_pending_updates=True)
 
 
