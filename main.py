@@ -3,7 +3,7 @@ import asyncio
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, ConversationHandler, filters,
+    MessageHandler, ConversationHandler, filters, ContextTypes,
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import BOT_TOKEN
