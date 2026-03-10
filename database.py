@@ -1,3 +1,4 @@
+import asyncio
 import aiosqlite
 from datetime import datetime, date
 from config import DB_PATH, REGIONS
@@ -5,17 +6,22 @@ from config import DB_PATH, REGIONS
 # ─── PERSISTENT ULANISH ───────────────────────────────────────────────────────
 
 _db: aiosqlite.Connection | None = None
+_db_lock: asyncio.Lock | None = None
 
 
 async def get_db() -> aiosqlite.Connection:
-    global _db
+    global _db, _db_lock
+    if _db_lock is None:
+        _db_lock = asyncio.Lock()
     if _db is None:
-        _db = await aiosqlite.connect(DB_PATH, check_same_thread=False)
-        _db.row_factory = aiosqlite.Row
-        await _db.execute("PRAGMA journal_mode=WAL")
-        await _db.execute("PRAGMA synchronous=NORMAL")
-        await _db.execute("PRAGMA cache_size=-8000")
-        await _db.execute("PRAGMA foreign_keys=ON")
+        async with _db_lock:
+            if _db is None:
+                _db = await aiosqlite.connect(DB_PATH)
+                _db.row_factory = aiosqlite.Row
+                await _db.execute("PRAGMA journal_mode=WAL")
+                await _db.execute("PRAGMA synchronous=NORMAL")
+                await _db.execute("PRAGMA cache_size=-8000")
+                await _db.execute("PRAGMA foreign_keys=ON")
     return _db
 
 

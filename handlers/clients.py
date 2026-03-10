@@ -8,31 +8,19 @@ from database import (
 from keyboards import (
     clients_menu_kb, client_detail_kb, edit_fields_kb,
     savdo_turi_kb, savdo_subturi_kb,
-    cancel_kb, skip_cancel_kb, back_kb, confirm_delete_kb,
-    pagination_kb, admin_main_menu_kb, user_main_menu_kb,
+    cancel_kb, skip_cancel_kb,
+    confirm_delete_kb, pagination_kb,
+    admin_main_menu_kb, user_main_menu_kb,
 )
 
 # ─── HOLATLAR ─────────────────────────────────────────────────────────────────
 (
-    ADD_ISM,
-    ADD_TELEFON,
-    ADD_MANZIL,
-    ADD_KASB,
-    ADD_SAVDO_TURI,
-    ADD_SAVDO_SUBTURI,
-    ADD_IZOH,
-    SEARCH_QUERY,
-    EDIT_VALUE,
-    DELETE_CONFIRM,
+    ADD_ISM, ADD_TELEFON, ADD_MANZIL, ADD_KASB,
+    ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI, ADD_IZOH,
+    SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
 ) = range(10)
 
 PAGE_SIZE = 8
-
-# ─── YORDAMCHI ────────────────────────────────────────────────────────────────
-
-async def _get_region(telegram_id: int):
-    user = await get_user(telegram_id)
-    return user["region_id"] if user else None
 
 def _is_admin(uid: int) -> bool:
     return uid in ADMIN_IDS
@@ -45,12 +33,16 @@ def _progress(step: int, total: int = 7) -> str:
     empty  = "░" * (total - step)
     return f"[{filled}{empty}] {step}/{total}"
 
+async def _get_region(telegram_id: int):
+    user = await get_user(telegram_id)
+    return user["region_id"] if user else None
+
 # ─── MIJOZLAR BO'LIM MENYUSI ──────────────────────────────────────────────────
 
 async def clients_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
+    if update.callback_query:
+        await update.callback_query.answer()
+    await update.effective_message.reply_text(
         "👥 *Mijozlar bo'limi*\n\nQuyidagi amallardan birini tanlang:",
         parse_mode="Markdown",
         reply_markup=clients_menu_kb(),
@@ -61,12 +53,12 @@ async def clients_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def client_add_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    if update.callback_query:
+        await update.callback_query.answer()
     ctx.user_data.clear()
     ctx.user_data["adding"] = True
 
-    await query.edit_message_text(
+    await update.effective_message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(1)}\n\n"
         f"1️⃣ *Ism va familiya* kiriting:",
@@ -125,7 +117,7 @@ async def add_savdo_turi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     turi = query.data.replace("turi_", "")
     ctx.user_data["savdo_turi"] = turi
 
-    await query.edit_message_text(
+    await query.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(6)}\n\n"
         f"6️⃣ *{turi}* — kichik turni tanlang:",
@@ -140,7 +132,7 @@ async def add_savdo_subturi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     subturi = query.data.replace("subturi_", "")
     ctx.user_data["savdo_subturi"] = subturi
 
-    await query.edit_message_text(
+    await query.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(7)}\n\n"
         f"7️⃣ *Izoh* yozing _(ixtiyoriy)_:",
@@ -157,18 +149,13 @@ async def add_izoh_skip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     ctx.user_data["izoh"] = ""
-    return await _save_client(update, ctx, from_callback=True)
+    return await _save_client(update, ctx)
 
-async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
-                        from_callback: bool = False):
+async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     region_id = await _get_region(user.id)
     if not region_id:
-        msg = "❌ Avval viloyat tanlang! /start"
-        if from_callback:
-            await update.callback_query.edit_message_text(msg)
-        else:
-            await update.message.reply_text(msg)
+        await update.effective_message.reply_text("❌ Avval viloyat tanlang! /start")
         ctx.user_data.clear()
         return ConversationHandler.END
 
@@ -194,15 +181,9 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
         f"📝 {data.get('izoh') or '—'}\n"
         f"🗺 {REGION_MAP.get(region_id, '?')}"
     )
-    kb = client_detail_kb(client_id)
-    if from_callback:
-        await update.callback_query.edit_message_text(
-            text, parse_mode="Markdown", reply_markup=kb
-        )
-    else:
-        await update.message.reply_text(
-            text, parse_mode="Markdown", reply_markup=kb
-        )
+    await update.effective_message.reply_text(
+        text, parse_mode="Markdown", reply_markup=client_detail_kb(client_id)
+    )
 
     ctx.user_data.clear()
     return ConversationHandler.END
@@ -212,18 +193,17 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
     page = 0
-    if "_page_" in query.data:
-        page = int(query.data.split("_page_")[-1])
+    if update.callback_query:
+        await update.callback_query.answer()
+        if "_page_" in update.callback_query.data:
+            page = int(update.callback_query.data.split("_page_")[-1])
 
     region_id = await _get_region(update.effective_user.id)
     total     = await count_clients(region_id)
 
     if total == 0:
-        await query.edit_message_text(
+        await update.effective_message.reply_text(
             "📋 Bazada hech qanday mijoz yo'q.",
             reply_markup=clients_menu_kb(),
         )
@@ -232,7 +212,7 @@ async def client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     clients = await get_clients(region_id, limit=PAGE_SIZE, offset=page * PAGE_SIZE)
     lines = []
     for i, c in enumerate(clients, start=page * PAGE_SIZE + 1):
-        turi = f"{c['savdo_turi'] or '—'}"
+        turi = c['savdo_turi'] or '—'
         lines.append(
             f"{i}. *{c['ism']}* — {c['telefon'] or '—'}\n"
             f"   🏷 {turi} | 🗺 {REGION_MAP.get(c['region_id'], '?')} | `/mijoz {c['id']}`"
@@ -243,9 +223,10 @@ async def client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"Sahifa {page + 1}\n\n" +
         "\n\n".join(lines)
     )
-    await query.edit_message_text(
+    pag_kb = pagination_kb(page, total, PAGE_SIZE, "clist")
+    await update.effective_message.reply_text(
         text, parse_mode="Markdown",
-        reply_markup=pagination_kb(page, total, PAGE_SIZE, "clist"),
+        reply_markup=pag_kb if pag_kb else clients_menu_kb(),
     )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -253,9 +234,9 @@ async def client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def client_search_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
+    if update.callback_query:
+        await update.callback_query.answer()
+    await update.effective_message.reply_text(
         "🔍 *Mijoz qidirish*\n\n"
         "Ism, telefon, manzil yoki kasb turi bo'yicha qidiring:",
         parse_mode="Markdown",
@@ -307,7 +288,7 @@ async def client_detail_command(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("❌ Noto'g'ri ID!")
         return
-    await _show_client(update, ctx, client_id, via_message=True)
+    await _show_client(update, ctx, client_id)
 
 async def client_detail_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -315,15 +296,10 @@ async def client_detail_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE)
     client_id = int(query.data.replace("client_detail_", ""))
     await _show_client(update, ctx, client_id)
 
-async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
-                        client_id: int, via_message: bool = False):
+async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE, client_id: int):
     c = await get_client_by_id(client_id)
     if not c:
-        txt = "❌ Mijoz topilmadi!"
-        if via_message:
-            await update.message.reply_text(txt)
-        else:
-            await update.callback_query.edit_message_text(txt)
+        await update.effective_message.reply_text("❌ Mijoz topilmadi!")
         return
 
     text = (
@@ -341,35 +317,31 @@ async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
         f"🕐 Qo'shilgan:    {c['qoshilgan_vaqt']}\n"
         f"🔄 Yangilangan:   {c['yangilangan_vaqt']}"
     )
-    kb = client_detail_kb(client_id)
-    if via_message:
-        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=kb)
-    else:
-        await update.callback_query.edit_message_text(text, parse_mode="Markdown", reply_markup=kb)
+    await update.effective_message.reply_text(
+        text, parse_mode="Markdown", reply_markup=client_detail_kb(client_id)
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MIJOZ TAHRIRLASH
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def edit_start_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """edit_<client_id>"""
     query = update.callback_query
     await query.answer()
     client_id = int(query.data.split("_")[1])
     c = await get_client_by_id(client_id)
     if not c:
-        await query.edit_message_text("❌ Mijoz topilmadi!")
+        await query.message.reply_text("❌ Mijoz topilmadi!")
         return
 
     ctx.user_data["edit_client_id"] = client_id
-    await query.edit_message_text(
+    await query.message.reply_text(
         f"✏️ *{c['ism']}* ni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?",
         parse_mode="Markdown",
         reply_markup=edit_fields_kb(client_id),
     )
 
 async def edit_field_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """editfield_<client_id>_<field>"""
     query = update.callback_query
     await query.answer()
     parts     = query.data.split("_")
@@ -380,12 +352,12 @@ async def edit_field_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["edit_field"]     = field
 
     if field == "savdo_turi":
-        await query.edit_message_text("🏷 Yangi savdo turini tanlang:", reply_markup=savdo_turi_kb())
+        await query.message.reply_text("🏷 Yangi savdo turini tanlang:", reply_markup=savdo_turi_kb())
         return EDIT_VALUE
     if field == "savdo_subturi":
         c = await get_client_by_id(client_id)
         turi = c["savdo_turi"] if c else "Ulgurji savdo"
-        await query.edit_message_text(
+        await query.message.reply_text(
             f"🏷 *{turi}* — yangi kichik turni tanlang:",
             parse_mode="Markdown",
             reply_markup=savdo_subturi_kb(turi),
@@ -396,7 +368,7 @@ async def edit_field_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "ism": "Ism-Familya", "telefon": "Telefon", "manzil": "Manzil",
         "kasb_turi": "Kasb turi", "izoh": "Izoh",
     }
-    await query.edit_message_text(
+    await query.message.reply_text(
         f"✏️ *{label_map.get(field, field)}* uchun yangi qiymat kiriting:",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
@@ -404,37 +376,33 @@ async def edit_field_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     return EDIT_VALUE
 
 async def edit_turi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """turi_<value> — tahrirlash oqimida"""
     query     = update.callback_query
     await query.answer()
     client_id = ctx.user_data.get("edit_client_id")
     if not client_id:
-        await query.edit_message_text("❌ Xato. Qaytadan urinib ko'ring.")
+        await query.message.reply_text("❌ Xato. Qaytadan urinib ko'ring.")
         return ConversationHandler.END
     value = query.data.replace("turi_", "")
     await update_client(client_id, "savdo_turi", value)
-    # subturi ni ham yangilash so'ralsin
-    ctx.user_data["edit_field"]     = "savdo_subturi"
-    await query.edit_message_text(
-        f"✅ Savdo turi yangilandi: *{value}*\n\n"
-        f"Kichik turni ham yangilaysizmi?",
+    ctx.user_data["edit_field"] = "savdo_subturi"
+    await query.message.reply_text(
+        f"✅ Savdo turi yangilandi: *{value}*\n\nKichik turni ham yangilaysizmi?",
         parse_mode="Markdown",
         reply_markup=savdo_subturi_kb(value),
     )
     return EDIT_VALUE
 
 async def edit_subturi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """subturi_<value> — tahrirlash oqimida"""
     query     = update.callback_query
     await query.answer()
     client_id = ctx.user_data.get("edit_client_id")
     if not client_id:
-        await query.edit_message_text("❌ Xato.")
+        await query.message.reply_text("❌ Xato.")
         return ConversationHandler.END
     value = query.data.replace("subturi_", "")
     await update_client(client_id, "savdo_subturi", value)
     ctx.user_data.clear()
-    await query.edit_message_text(
+    await query.message.reply_text(
         f"✅ Kichik tur yangilandi: *{value}*",
         parse_mode="Markdown",
         reply_markup=client_detail_kb(client_id),
@@ -444,6 +412,27 @@ async def edit_subturi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def edit_value_received(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     client_id = ctx.user_data.get("edit_client_id")
     field     = ctx.user_data.get("edit_field")
+
+    # Agar awaiting_edit_id bo'lsa — ID kutilmoqda
+    if ctx.user_data.get("awaiting_edit_id"):
+        try:
+            client_id = int(update.message.text.strip())
+        except ValueError:
+            await update.message.reply_text("❌ Raqam kiriting:", reply_markup=cancel_kb())
+            return EDIT_VALUE
+        c = await get_client_by_id(client_id)
+        if not c:
+            await update.message.reply_text("❌ Topilmadi. Boshqa ID:", reply_markup=cancel_kb())
+            return EDIT_VALUE
+        ctx.user_data["edit_client_id"]    = client_id
+        ctx.user_data["awaiting_edit_id"]  = False
+        await update.message.reply_text(
+            f"✏️ *{c['ism']}* ni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?",
+            parse_mode="Markdown",
+            reply_markup=edit_fields_kb(client_id),
+        )
+        return EDIT_VALUE
+
     if not client_id or not field:
         await update.message.reply_text("❌ Xato. /start bosing.")
         return ConversationHandler.END
@@ -451,6 +440,7 @@ async def edit_value_received(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     value = update.message.text.strip()
     await update_client(client_id, field, value)
     ctx.user_data.clear()
+    is_admin = _is_admin(update.effective_user.id)
     await update.message.reply_text(
         "✅ *Muvaffaqiyatli yangilandi!*",
         parse_mode="Markdown",
@@ -459,9 +449,9 @@ async def edit_value_received(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def edit_start_ask_id(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
+    if update.callback_query:
+        await update.callback_query.answer()
+    await update.effective_message.reply_text(
         "✏️ Tahrirlash uchun mijoz *ID* sini kiriting:",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
@@ -474,15 +464,14 @@ async def edit_start_ask_id(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def delete_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """del_<client_id>"""
     query = update.callback_query
     await query.answer()
     client_id = int(query.data.split("_")[1])
     c = await get_client_by_id(client_id)
     if not c:
-        await query.edit_message_text("❌ Mijoz topilmadi!")
+        await query.message.reply_text("❌ Mijoz topilmadi!")
         return
-    await query.edit_message_text(
+    await query.message.reply_text(
         f"🗑 *{c['ism']}* ni o'chirishni tasdiqlaysizmi?\n"
         "_(Barcha bog'liq vazifalar ham o'chadi)_",
         parse_mode="Markdown",
@@ -490,21 +479,17 @@ async def delete_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
 async def delete_confirm_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """delclient_confirm_<client_id>"""
     query = update.callback_query
     await query.answer()
     client_id = int(query.data.split("_")[-1])
     await delete_client(client_id)
     is_admin = _is_admin(update.effective_user.id)
-    await query.edit_message_text(
-        "✅ Mijoz o'chirildi.",
-        reply_markup=_main_kb(is_admin),
-    )
+    await query.message.reply_text("✅ Mijoz o'chirildi.", reply_markup=_main_kb(is_admin))
 
 async def delete_ask_id(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
+    if update.callback_query:
+        await update.callback_query.answer()
+    await update.effective_message.reply_text(
         "🗑 O'chirish uchun mijoz *ID* sini kiriting:",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),

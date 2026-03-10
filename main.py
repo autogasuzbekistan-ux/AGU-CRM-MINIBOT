@@ -1,3 +1,4 @@
+import re
 import logging
 import asyncio
 from telegram import Update
@@ -29,7 +30,7 @@ from handlers.clients import (
 )
 from handlers.tasks import (
     tasks_menu, task_add_start, task_title, task_client, task_deadline,
-    task_desc, task_list, task_detail_command,
+    task_desc, task_list, task_done_list, task_detail_command,
     task_complete_callback, task_delete_callback, task_delete_confirm_callback,
     TASK_TITLE, TASK_CLIENT, TASK_DEADLINE, TASK_DESC,
 )
@@ -42,6 +43,16 @@ from handlers.export import (
 )
 from handlers.admin import admin_users, admin_send_report
 from handlers.export import get_overdue_tasks_and_notify
+from keyboards import (
+    BTN_CLIENTS, BTN_STATS, BTN_TASKS, BTN_EXPORT, BTN_REGION,
+    BTN_USERS, BTN_REPORT,
+    BTN_ADD_CLIENT, BTN_SEARCH_CLIENT, BTN_CLIENT_LIST,
+    BTN_EDIT_CLIENT, BTN_DELETE_CLIENT,
+    BTN_ADD_TASK, BTN_ACTIVE_TASKS, BTN_DONE_TASKS,
+    BTN_STATS_GENERAL, BTN_STATS_REGION, BTN_STATS_TYPE, BTN_STATS_SUB,
+    BTN_EXPORT_MY, BTN_EXPORT_ALL, BTN_EXPORT_CHOOSE,
+    BTN_BACK, BTN_CANCEL,
+)
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -51,42 +62,49 @@ logger = logging.getLogger(__name__)
 
 # ─── CONVERSATION HANDLERLAR ──────────────────────────────────────────────────
 
+def _txt(btn: str):
+    """Tugma matni uchun Regex filter (aniq moslik)"""
+    return filters.Regex(f"^{re.escape(btn)}$")
+
 def build_add_client_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
+            MessageHandler(_txt(BTN_ADD_CLIENT), client_add_start),
             CallbackQueryHandler(client_add_start, pattern="^client_add$"),
         ],
         states={
-            ADD_ISM:          [MessageHandler(filters.TEXT & ~filters.COMMAND, add_ism)],
-            ADD_TELEFON:      [MessageHandler(filters.TEXT & ~filters.COMMAND, add_telefon)],
-            ADD_MANZIL:       [MessageHandler(filters.TEXT & ~filters.COMMAND, add_manzil)],
-            ADD_KASB:         [MessageHandler(filters.TEXT & ~filters.COMMAND, add_kasb)],
-            ADD_SAVDO_TURI:   [CallbackQueryHandler(add_savdo_turi_cb, pattern=r"^turi_")],
-            ADD_SAVDO_SUBTURI:[CallbackQueryHandler(add_savdo_subturi_cb, pattern=r"^subturi_")],
+            ADD_ISM:           [MessageHandler(filters.TEXT & ~filters.COMMAND, add_ism)],
+            ADD_TELEFON:       [MessageHandler(filters.TEXT & ~filters.COMMAND, add_telefon)],
+            ADD_MANZIL:        [MessageHandler(filters.TEXT & ~filters.COMMAND, add_manzil)],
+            ADD_KASB:          [MessageHandler(filters.TEXT & ~filters.COMMAND, add_kasb)],
+            ADD_SAVDO_TURI:    [CallbackQueryHandler(add_savdo_turi_cb,    pattern=r"^turi_")],
+            ADD_SAVDO_SUBTURI: [CallbackQueryHandler(add_savdo_subturi_cb, pattern=r"^subturi_")],
             ADD_IZOH: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_izoh),
                 CallbackQueryHandler(add_izoh_skip, pattern="^skip_izoh$"),
             ],
         },
-        fallbacks=[CallbackQueryHandler(handle_cancel, pattern="^cancel$")],
+        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
         allow_reentry=True,
+        block=False,
     )
 
 def build_search_conv() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CallbackQueryHandler(client_search_start, pattern="^client_search$")],
+        entry_points=[MessageHandler(_txt(BTN_SEARCH_CLIENT), client_search_start)],
         states={
             SEARCH_QUERY: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_search_query)],
         },
-        fallbacks=[CallbackQueryHandler(handle_cancel, pattern="^cancel$")],
+        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
         allow_reentry=True,
+        block=False,
     )
 
 def build_edit_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
             CallbackQueryHandler(edit_start_callback, pattern=r"^edit_\d+$"),
-            CallbackQueryHandler(edit_start_ask_id,   pattern="^client_edit_start$"),
+            MessageHandler(_txt(BTN_EDIT_CLIENT), edit_start_ask_id),
         ],
         states={
             EDIT_VALUE: [
@@ -96,26 +114,28 @@ def build_edit_conv() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value_received),
             ],
         },
-        fallbacks=[CallbackQueryHandler(handle_cancel, pattern="^cancel$")],
+        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
         allow_reentry=True,
+        block=False,
     )
 
 def build_delete_conv() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CallbackQueryHandler(delete_ask_id, pattern="^client_delete_start$")],
+        entry_points=[MessageHandler(_txt(BTN_DELETE_CLIENT), delete_ask_id)],
         states={
             DELETE_CONFIRM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, delete_id_received),
             ],
         },
-        fallbacks=[CallbackQueryHandler(handle_cancel, pattern="^cancel$")],
+        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
         allow_reentry=True,
+        block=False,
     )
 
 def build_task_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(task_add_start, pattern="^task_add$"),
+            MessageHandler(_txt(BTN_ADD_TASK), task_add_start),
             CallbackQueryHandler(task_add_start, pattern=r"^task_for_\d+$"),
         ],
         states={
@@ -124,8 +144,9 @@ def build_task_conv() -> ConversationHandler:
             TASK_DEADLINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, task_deadline)],
             TASK_DESC:     [MessageHandler(filters.TEXT & ~filters.COMMAND, task_desc)],
         },
-        fallbacks=[CallbackQueryHandler(handle_cancel, pattern="^cancel$")],
+        fallbacks=[MessageHandler(_txt(BTN_CANCEL), handle_cancel)],
         allow_reentry=True,
+        block=False,
     )
 
 # ─── ASOSIY ───────────────────────────────────────────────────────────────────
@@ -137,7 +158,6 @@ def main():
     app = (
         Application.builder()
         .token(BOT_TOKEN)
-        .concurrent_updates(True)
         .read_timeout(30)
         .write_timeout(30)
         .connect_timeout(30)
@@ -145,89 +165,89 @@ def main():
         .build()
     )
 
-    # ConversationHandlerlar (AVVAL ro'yxatga olinishi shart)
+    # ─── ConversationHandlerlar (AVVAL qo'shiladi) ────────────────────────────
     app.add_handler(build_add_client_conv())
     app.add_handler(build_search_conv())
     app.add_handler(build_edit_conv())
     app.add_handler(build_delete_conv())
     app.add_handler(build_task_conv())
 
-    # Oddiy komandalar
+    # ─── Komandalar ───────────────────────────────────────────────────────────
     app.add_handler(CommandHandler("start",  start))
     app.add_handler(CommandHandler("mijoz",  client_detail_command))
     app.add_handler(CommandHandler("vazifa", task_detail_command))
 
-    # ─── Callback handlerlar ───────────────────────────────────────────────────
+    # ─── Inline callback handlerlar ───────────────────────────────────────────
+    app.add_handler(CallbackQueryHandler(noop_callback,             pattern="^noop$"))
+    app.add_handler(CallbackQueryHandler(handle_region_selection,   pattern=r"^region_"))
+    app.add_handler(CallbackQueryHandler(client_detail_callback,    pattern=r"^client_detail_\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_callback,           pattern=r"^del_\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_confirm_callback,   pattern=r"^delclient_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(client_list,               pattern=r"^clist_page_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_complete_callback,    pattern=r"^task_complete_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_delete_callback,      pattern=r"^task_del_\d+$"))
+    app.add_handler(CallbackQueryHandler(task_delete_confirm_callback, pattern=r"^deltask_confirm_\d+$"))
 
-    # Umumiy
-    app.add_handler(CallbackQueryHandler(back_to_main,       pattern="^back_main$"))
-    app.add_handler(CallbackQueryHandler(handle_cancel,      pattern="^cancel$"))
-    app.add_handler(CallbackQueryHandler(noop_callback,      pattern="^noop$"))
-
-    # Viloyat — bitta dispatcher: export_choosing flagini tekshiradi
-    app.add_handler(CallbackQueryHandler(change_region_menu, pattern="^menu_change_region$"))
-
+    # export_region: region_ callback faqat export oqimida
     async def region_router(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if ctx.user_data.get("export_choosing"):
             return await export_region_selected(update, ctx)
         return await handle_region_selection(update, ctx)
-
     app.add_handler(CallbackQueryHandler(region_router, pattern=r"^region_"))
 
-    # Mijozlar
-    app.add_handler(CallbackQueryHandler(clients_menu,          pattern="^menu_clients$"))
-    app.add_handler(CallbackQueryHandler(client_list,           pattern=r"^client_list$|^clist_page_\d+$"))
-    app.add_handler(CallbackQueryHandler(client_detail_callback,pattern=r"^client_detail_\d+$"))
-    app.add_handler(CallbackQueryHandler(delete_callback,       pattern=r"^del_\d+$"))
-    app.add_handler(CallbackQueryHandler(delete_confirm_callback, pattern=r"^delclient_confirm_\d+$"))
+    # ─── ReplyKeyboard text handlerlar (group=1 — ConversationHandlerdan keyin) ─
+    def txt(btn: str):
+        return MessageHandler(_txt(btn), None)  # placeholder, overridden below
 
-    # Vazifalar
-    app.add_handler(CallbackQueryHandler(tasks_menu,             pattern="^menu_tasks$"))
-    app.add_handler(CallbackQueryHandler(task_list,              pattern=r"^task_list$|^task_done_list$"))
-    app.add_handler(CallbackQueryHandler(task_complete_callback, pattern=r"^task_complete_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_delete_callback,   pattern=r"^task_del_\d+$"))
-    app.add_handler(CallbackQueryHandler(task_delete_confirm_callback, pattern=r"^deltask_confirm_\d+$"))
+    def add_txt(pattern: str, handler):
+        app.add_handler(
+            MessageHandler(filters.Regex(f"^{re.escape(pattern)}$"), handler),
+            group=1,
+        )
 
-    # Statistika
-    app.add_handler(CallbackQueryHandler(stats_menu,             pattern="^menu_stats$"))
-    app.add_handler(CallbackQueryHandler(stats_general,          pattern="^stats_general$"))
-    app.add_handler(CallbackQueryHandler(stats_by_region,        pattern="^stats_by_region$"))
-    app.add_handler(CallbackQueryHandler(stats_by_type,          pattern="^stats_by_type$"))
-    app.add_handler(CallbackQueryHandler(stats_by_grade,         pattern="^stats_by_grade$|^stats_by_sub$"))
+    # Asosiy navigatsiya
+    add_txt(BTN_CLIENTS,        clients_menu)
+    add_txt(BTN_STATS,          stats_menu)
+    add_txt(BTN_TASKS,          tasks_menu)
+    add_txt(BTN_EXPORT,         export_menu)
+    add_txt(BTN_REGION,         change_region_menu)
+    add_txt(BTN_USERS,          admin_users)
+    add_txt(BTN_REPORT,         admin_send_report)
 
-    # Eksport
-    app.add_handler(CallbackQueryHandler(export_menu,            pattern="^menu_export$"))
-    app.add_handler(CallbackQueryHandler(export_my_region,       pattern="^export_my_region$"))
-    app.add_handler(CallbackQueryHandler(export_all,             pattern="^export_all$"))
-    app.add_handler(CallbackQueryHandler(export_choose_region,   pattern="^export_choose$"))
-    # region_ uchun bitta dispatcher — ichida export_choosing flagini tekshiradi
+    # Mijozlar bo'limi
+    add_txt(BTN_CLIENT_LIST,    client_list)
 
-    # Admin
-    app.add_handler(CallbackQueryHandler(admin_users,            pattern="^admin_users$"))
-    app.add_handler(CallbackQueryHandler(admin_send_report,      pattern="^admin_send_report$"))
+    # Vazifalar bo'limi
+    add_txt(BTN_ACTIVE_TASKS,   task_list)
+    add_txt(BTN_DONE_TASKS,     task_done_list)
+
+    # Statistika bo'limi
+    add_txt(BTN_STATS_GENERAL,  stats_general)
+    add_txt(BTN_STATS_REGION,   stats_by_region)
+    add_txt(BTN_STATS_TYPE,     stats_by_type)
+    add_txt(BTN_STATS_SUB,      stats_by_grade)
+
+    # Eksport bo'limi
+    add_txt(BTN_EXPORT_MY,      export_my_region)
+    add_txt(BTN_EXPORT_ALL,     export_all)
+    add_txt(BTN_EXPORT_CHOOSE,  export_choose_region)
+
+    # Orqaga / Bekor
+    add_txt(BTN_BACK,           back_to_main)
+    add_txt(BTN_CANCEL,         handle_cancel)
 
     # ─── Schedulerlar ─────────────────────────────────────────────────────────
     scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
-
-    # Har kecha soat 22:00 da kunlik hisobot
     scheduler.add_job(
-        send_daily_report,
-        trigger="cron",
-        hour=22,
-        minute=0,
-        args=[app],
-        id="daily_report_2200",
+        send_daily_report, trigger="cron", hour=22, minute=0,
+        args=[app], id="daily_report_2200",
     )
-    # Har 30 daqiqada muddati o'tgan vazifalarni tekshirish
     scheduler.add_job(
-        get_overdue_tasks_and_notify,
-        trigger="interval",
-        minutes=30,
-        args=[app],
-        id="overdue_tasks",
+        get_overdue_tasks_and_notify, trigger="interval", minutes=30,
+        args=[app], id="overdue_tasks",
     )
 
-    logger.info("✅ AGU CRM Bot ishga tushdi! Har kecha 22:00 da hisobot yuboriladi.")
+    logger.info("✅ AGU CRM Bot ishga tushdi!")
 
     async def post_init(application):
         scheduler.start()
@@ -237,7 +257,6 @@ def main():
 
 
 if __name__ == "__main__":
-    import asyncio
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
