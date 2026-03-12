@@ -94,6 +94,7 @@ def build_add_client_conv() -> ConversationHandler:
         },
         fallbacks=_fallbacks(),
         allow_reentry=True,
+        per_message=False,
         block=False,
     )
 
@@ -105,6 +106,7 @@ def build_search_conv() -> ConversationHandler:
         },
         fallbacks=_fallbacks(),
         allow_reentry=True,
+        per_message=False,
         block=False,
     )
 
@@ -124,6 +126,7 @@ def build_edit_conv() -> ConversationHandler:
         },
         fallbacks=_fallbacks(),
         allow_reentry=True,
+        per_message=False,
         block=False,
     )
 
@@ -137,6 +140,7 @@ def build_delete_conv() -> ConversationHandler:
         },
         fallbacks=_fallbacks(),
         allow_reentry=True,
+        per_message=False,
         block=False,
     )
 
@@ -154,6 +158,7 @@ def build_task_conv() -> ConversationHandler:
         },
         fallbacks=_fallbacks(),
         allow_reentry=True,
+        per_message=False,
         block=False,
     )
 
