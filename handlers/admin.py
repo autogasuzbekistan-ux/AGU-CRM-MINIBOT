@@ -46,15 +46,17 @@ async def admin_users(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     for u in users:
         role_icon = "👑" if u["role"] == "admin" else "👤"
         region    = REGION_MAP.get(u["region_id"], "—") if u["region_id"] else "—"
+        full_name = (u['full_name'] or '—').replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        username  = (u['username'] or '—').replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         lines.append(
-            f"{role_icon} *{u['full_name']}* (@{u['username'] or '—'})\n"
-            f"   🗺 {region} | ID: `{u['telegram_id']}`\n"
+            f"{role_icon} <b>{full_name}</b> (@{username})\n"
+            f"   🏙 {region} | ID: <code>{u['telegram_id']}</code>\n"
             f"   🕐 {u['created_at'] or '—'}"
         )
 
-    text = f"👥 *Foydalanuvchilar ro'yxati* ({len(users)} ta):\n\n" + "\n\n".join(lines)
+    text = f"👥 <b>Foydalanuvchilar ro'yxati</b> ({len(users)} ta):\n\n" + "\n\n".join(lines)
     await update.effective_message.reply_text(
-        text, parse_mode="Markdown",
+        text, parse_mode="HTML",
         reply_markup=admin_main_menu_kb(),
     )
 

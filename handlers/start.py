@@ -7,8 +7,15 @@ from keyboards import (
     BTN_CANCEL,
 )
 
+
 def _is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
+
+
+def _esc(text: str) -> str:
+    """HTML uchun maxsus belgilarni qochirish."""
+    return (text or "—").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
 
 # ─── /start ───────────────────────────────────────────────────────────────────
 
@@ -26,8 +33,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     db_user = await get_user(user.id)
 
     welcome = (
-        f"Assalom alaikum, *{user.full_name}*!\n\n"
-        f"🏢 *AGU CRM* ga Xush kelibsiz!\n"
+        f"Assalom alaikum, <b>{_esc(user.full_name)}</b>!\n\n"
+        f"🏢 <b>AGU CRM</b> ga Xush kelibsiz!\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"Siz O'zbekiston bo'ylab yagona LPG va CNG sohasida "
         f"tizimlashgan mijozlar bo'limiga keldingiz!"
@@ -35,8 +42,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if not db_user or not db_user["region_id"]:
         await update.effective_message.reply_text(
-            welcome + "\n\n🗺 Iltimos, o'z shaharingizni tanlang:",
-            parse_mode="Markdown",
+            welcome + "\n\n🏙 Iltimos, o'z shaharingizni tanlang:",
+            parse_mode="HTML",
             reply_markup=regions_kb(include_all=is_admin),
         )
         return
@@ -46,24 +53,24 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if is_admin:
         text = (
             welcome + "\n\n"
-            f"👑 *ADMIN PANEL*\n"
+            f"👑 <b>ADMIN PANEL</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 {user.full_name}\n"
-            f"🏙 Shahar: *{region_name}*\n\n"
+            f"👤 {_esc(user.full_name)}\n"
+            f"🏙 Shahar: <b>{_esc(region_name)}</b>\n\n"
             f"Quyidagi amallardan birini tanlang:"
         )
     else:
         text = (
             welcome + "\n\n"
-            f"📋 *Mening menyum*\n"
+            f"📋 <b>Mening menyum</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 {user.full_name}\n"
-            f"🏙 {region_name}\n\n"
+            f"👤 {_esc(user.full_name)}\n"
+            f"🏙 {_esc(region_name)}\n\n"
             f"Nima qilmoqchisiz?"
         )
 
     kb = admin_main_menu_kb() if is_admin else user_main_menu_kb()
-    await update.effective_message.reply_text(text, parse_mode="Markdown", reply_markup=kb)
+    await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=kb)
 
 # ─── VILOYAT TANLASH ──────────────────────────────────────────────────────────
 
@@ -79,7 +86,7 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
             await query.answer("Bu funksiya faqat adminlar uchun!", show_alert=True)
             return
         await set_user_region(user.id, None)
-        region_name = "Barcha viloyatlar 🌍"
+        region_name = "Barcha shaharlar 🌍"
     else:
         region_id = int(data.split("_")[1])
         await set_user_region(user.id, region_id)
@@ -94,19 +101,19 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
 
     if is_admin:
         text = (
-            f"👑 *ADMIN PANEL*\n"
+            f"👑 <b>ADMIN PANEL</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"✅ Shahar: *{region_name}*\n\n"
+            f"✅ Shahar: <b>{_esc(region_name)}</b>\n\n"
             f"Quyidagi amallardan birini tanlang:"
         )
     else:
         text = (
-            f"✅ Shahar tanlandi: *{region_name}*\n\n"
+            f"✅ Shahar tanlandi: <b>{_esc(region_name)}</b>\n\n"
             f"Nima qilmoqchisiz?"
         )
 
     kb = admin_main_menu_kb() if is_admin else user_main_menu_kb()
-    await query.message.reply_text(text, parse_mode="Markdown", reply_markup=kb)
+    await query.message.reply_text(text, parse_mode="HTML", reply_markup=kb)
 
 # ─── VILOYAT O'ZGARTIRISH ─────────────────────────────────────────────────────
 
