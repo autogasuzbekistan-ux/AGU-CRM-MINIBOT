@@ -9,22 +9,19 @@ DB_PATH   = os.getenv("DB_PATH", "crm_bot.db")
 _admin_raw = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS  = [int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()]
 
-# ─── UZBEKISTON VILOYATLARI ───────────────────────────────────────────────────
+# ─── AGU SHAHARLARI ───────────────────────────────────────────────────────────
 REGIONS = [
-    {"id": 1,  "name": "Andijon",           "code": "AND"},
-    {"id": 2,  "name": "Buxoro",            "code": "BUX"},
-    {"id": 3,  "name": "Farg'ona",          "code": "FAR"},
-    {"id": 4,  "name": "Jizzax",            "code": "JIZ"},
-    {"id": 5,  "name": "Xorazm",            "code": "XOR"},
-    {"id": 6,  "name": "Namangan",          "code": "NAM"},
-    {"id": 7,  "name": "Navoiy",            "code": "NAV"},
-    {"id": 8,  "name": "Qashqadaryo",       "code": "QAS"},
-    {"id": 9,  "name": "Qoraqalpog'iston",  "code": "QQP"},
-    {"id": 10, "name": "Samarqand",         "code": "SAM"},
-    {"id": 11, "name": "Sirdaryo",          "code": "SIR"},
-    {"id": 12, "name": "Surxondaryo",       "code": "SUR"},
-    {"id": 13, "name": "Toshkent viloyati", "code": "TOS"},
-    {"id": 14, "name": "Toshkent shahri",   "code": "TSH"},
+    {"id": 1,  "name": "AGU Andijon",   "code": "AND"},
+    {"id": 2,  "name": "AGU Namangan",  "code": "NAM"},
+    {"id": 3,  "name": "AGU Qo'qon",   "code": "QOQ"},
+    {"id": 4,  "name": "AGU Toshkent", "code": "TOS"},
+    {"id": 5,  "name": "AGU Guliston", "code": "GUL"},
+    {"id": 6,  "name": "AGU Samarqand","code": "SAM"},
+    {"id": 7,  "name": "AGU Buxoro",   "code": "BUX"},
+    {"id": 8,  "name": "AGU Qarshi",   "code": "QAR"},
+    {"id": 9,  "name": "AGU Denov",    "code": "DEN"},
+    {"id": 10, "name": "AGU Xorazm",   "code": "XOR"},
+    {"id": 11, "name": "AGU Nukus",    "code": "NUK"},
 ]
 REGION_MAP      = {r["id"]: r["name"] for r in REGIONS}
 REGION_CODE_MAP = {r["id"]: r["code"] for r in REGIONS}

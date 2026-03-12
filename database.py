@@ -85,9 +85,14 @@ async def init_db():
 
         for r in REGIONS:
             await db.execute(
-                "INSERT OR IGNORE INTO regions (id, name, code) VALUES (?, ?, ?)",
+                "INSERT OR REPLACE INTO regions (id, name, code) VALUES (?, ?, ?)",
                 (r["id"], r["name"], r["code"])
             )
+        # Eski region IDlarini o'chirish (FK bilan bog'liq bo'lmagan)
+        valid_ids = ",".join(str(r["id"]) for r in REGIONS)
+        await db.execute(
+            f"DELETE FROM regions WHERE id NOT IN ({valid_ids})"
+        )
         await db.commit()
 
 
