@@ -19,7 +19,7 @@ from handlers.clients import (
     clients_menu, client_add_start,
     add_ism, add_telefon, add_manzil, add_kasb,
     add_savdo_turi_cb, add_savdo_subturi_cb, add_izoh, add_izoh_skip,
-    client_list, client_search_start, client_search_query,
+    client_list, my_client_list, client_search_start, client_search_query,
     client_detail_command, client_detail_callback,
     edit_start_callback, edit_field_callback,
     edit_turi_cb, edit_subturi_cb, edit_value_received, edit_start_ask_id,
@@ -47,7 +47,7 @@ from handlers.admin import admin_users, admin_send_report
 from keyboards import (
     BTN_CLIENTS, BTN_STATS, BTN_TASKS, BTN_EXPORT, BTN_REGION,
     BTN_USERS, BTN_REPORT,
-    BTN_ADD_CLIENT, BTN_SEARCH_CLIENT, BTN_CLIENT_LIST,
+    BTN_ADD_CLIENT, BTN_SEARCH_CLIENT, BTN_CLIENT_LIST, BTN_MY_CLIENTS,
     BTN_EDIT_CLIENT, BTN_DELETE_CLIENT,
     BTN_ADD_TASK, BTN_ACTIVE_TASKS, BTN_DONE_TASKS,
     BTN_STATS_GENERAL, BTN_STATS_REGION, BTN_STATS_TYPE, BTN_STATS_SUB,
@@ -236,6 +236,7 @@ def main():
     app.add_handler(CallbackQueryHandler(task_delete_callback,       pattern=r"^task_del_\d+$"))
     app.add_handler(CallbackQueryHandler(task_delete_confirm_callback, pattern=r"^deltask_confirm_\d+$"))
     app.add_handler(CallbackQueryHandler(confirm_client_callback,      pattern=r"^confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(my_client_list,               pattern=r"^myclients_page_\d+$"))
 
     # ── ReplyKeyboard text handlerlar (group=1) ───────────────────────────────
     def add_txt(pattern: str, handler):
@@ -252,6 +253,7 @@ def main():
     add_txt(BTN_USERS,         admin_users)
     add_txt(BTN_REPORT,        admin_send_report)
     add_txt(BTN_CLIENT_LIST,   client_list)
+    add_txt(BTN_MY_CLIENTS,    my_client_list)
     add_txt(BTN_ACTIVE_TASKS,  task_list)
     add_txt(BTN_DONE_TASKS,    task_done_list)
     add_txt(BTN_STATS_GENERAL, stats_general)

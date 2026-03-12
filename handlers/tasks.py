@@ -4,7 +4,7 @@ from config import ADMIN_IDS, REGION_MAP
 from database import get_user, add_task, get_tasks, complete_task, delete_task, get_client_by_id
 from handlers.export import notify_admins_new_task
 from keyboards import (
-    tasks_menu_kb, task_action_kb, cancel_kb, confirm_delete_kb,
+    tasks_menu_kb, task_action_kb, task_list_kb, cancel_kb, confirm_delete_kb,
     admin_main_menu_kb, user_main_menu_kb,
 )
 
@@ -184,28 +184,30 @@ async def _show_task_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE, only_a
     tasks = await get_tasks(region_id, only_active=only_active)
 
     if not tasks:
-        status = "Faol" if only_active else "Bajarilgan"
+        label = "Faol" if only_active else "Bajarilgan"
         await update.effective_message.reply_text(
-            f"📋 {status} vazifalar yo'q.",
+            f"📋 {label} vazifalar yo'q.",
             reply_markup=tasks_menu_kb(),
         )
         return
 
     lines = []
-    for t in tasks:
-        status_icon  = "✅" if t["bajarilgan"] else "🔔"
+    for i, t in enumerate(tasks, 1):
+        icon         = "🔔" if only_active else "✅"
         client_info  = f" → *{t['client_ism']}*" if t["client_ism"] else ""
-        deadline_str = f"\n   🗓 {t['muddat']}" if t["muddat"] else ""
+        deadline_str = f" | 🗓 `{t['muddat'][:10]}`" if t["muddat"] else ""
         lines.append(
-            f"{status_icon} *{t['sarlavha']}*{client_info}{deadline_str}\n"
-            f"   🗺 {REGION_MAP.get(t['region_id'], '?')} | ID: `{t['id']}`"
+            f"{i}. {icon} *{t['sarlavha']}*{client_info}{deadline_str}\n"
+            f"   🗺 {REGION_MAP.get(t['region_id'], '?')}"
         )
 
-    title = "📋 *Faol vazifalar*" if only_active else "☑️ *Bajarilgan vazifalar*"
-    text  = f"{title} ({len(tasks)} ta):\n\n" + "\n\n".join(lines)
-    text += "\n\n_Amal uchun: /vazifa <ID>_"
+    title   = "📋 *Faol vazifalar*" if only_active else "☑️ *Bajarilgan vazifalar*"
+    text    = f"{title} ({len(tasks)} ta):\n\n" + "\n\n".join(lines)
+    list_kb = task_list_kb([dict(t) for t in tasks]) if only_active else None
+
     await update.effective_message.reply_text(
-        text, parse_mode="Markdown", reply_markup=tasks_menu_kb()
+        text, parse_mode="Markdown",
+        reply_markup=list_kb if list_kb else tasks_menu_kb(),
     )
 
 async def task_detail_command(update: Update, ctx: ContextTypes.DEFAULT_TYPE):

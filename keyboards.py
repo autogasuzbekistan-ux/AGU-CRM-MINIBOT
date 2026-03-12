@@ -11,8 +11,9 @@ BTN_USERS          = "👤 Foydalanuvchilar"
 BTN_REPORT         = "📨 Hisobot yuborish"
 
 BTN_ADD_CLIENT     = "➕ Mijoz qo'shish"
-BTN_SEARCH_CLIENT  = "🔍 Mijoz qidirish"
+BTN_SEARCH_CLIENT  = "🔍 Qidirish"
 BTN_CLIENT_LIST    = "📋 Mijozlar ro'yxati"
+BTN_MY_CLIENTS     = "📋 Mijozlarim"
 BTN_EDIT_CLIENT    = "✏️ Tahrirlash"
 BTN_DELETE_CLIENT  = "🗑 O'chirish"
 
@@ -47,9 +48,9 @@ def admin_main_menu_kb() -> ReplyKeyboardMarkup:
 
 def user_main_menu_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([
-        [BTN_ADD_CLIENT,  BTN_SEARCH_CLIENT],
-        [BTN_CLIENT_LIST, BTN_TASKS],
-        [BTN_STATS],
+        [BTN_ADD_CLIENT],
+        [BTN_MY_CLIENTS,  BTN_SEARCH_CLIENT],
+        [BTN_TASKS,       BTN_REGION],
     ], resize_keyboard=True)
 
 def main_menu_kb(is_admin: bool = False) -> ReplyKeyboardMarkup:
@@ -172,6 +173,18 @@ def task_action_kb(task_id: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("✅ Bajarildi",  callback_data=f"task_complete_{task_id}"),
          InlineKeyboardButton("🗑 O'chirish",  callback_data=f"task_del_{task_id}")],
     ])
+
+def task_list_kb(tasks: list) -> InlineKeyboardMarkup:
+    """Vazifalar ro'yxati — har bir vazifa uchun ✅ va 🗑 tugmalar."""
+    buttons = []
+    for t in tasks[:20]:
+        title = t["sarlavha"]
+        short = (title[:20] + "…") if len(title) > 20 else title
+        buttons.append([
+            InlineKeyboardButton(f"✅ {short}", callback_data=f"task_complete_{t['id']}"),
+            InlineKeyboardButton("🗑",           callback_data=f"task_del_{t['id']}"),
+        ])
+    return InlineKeyboardMarkup(buttons) if buttons else None
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # UMUMIY YORDAMCHI (InlineKeyboard)

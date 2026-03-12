@@ -238,6 +238,26 @@ async def delete_client(client_id: int):
         await db.commit()
 
 
+async def get_my_clients(qoshgan_id: int, limit: int = 50, offset: int = 0):
+    """Foydalanuvchi o'zi qo'shgan mijozlar."""
+    async with _connect() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM clients WHERE qoshgan_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            (qoshgan_id, limit, offset),
+        ) as cur:
+            return await cur.fetchall()
+
+
+async def count_my_clients(qoshgan_id: int) -> int:
+    async with _connect() as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM clients WHERE qoshgan_id = ?", (qoshgan_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+
 async def count_clients(region_id=None) -> int:
     async with _connect() as db:
         db.row_factory = aiosqlite.Row

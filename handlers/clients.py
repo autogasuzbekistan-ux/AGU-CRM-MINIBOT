@@ -4,6 +4,7 @@ from config import ADMIN_IDS, REGION_MAP
 from database import (
     get_user, add_client, get_clients, search_clients,
     get_client_by_id, update_client, delete_client, count_clients,
+    get_my_clients, count_my_clients,
 )
 from keyboards import (
     clients_menu_kb, client_detail_kb, edit_fields_kb,
@@ -197,6 +198,46 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     ctx.user_data.clear()
     return ConversationHandler.END
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MENING MIJOZLARIM (faqat o'zi qo'shganlar)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def my_client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    page = 0
+    if update.callback_query:
+        await update.callback_query.answer()
+        if "_page_" in update.callback_query.data:
+            page = int(update.callback_query.data.split("_page_")[-1])
+
+    uid   = update.effective_user.id
+    total = await count_my_clients(uid)
+
+    if total == 0:
+        await update.effective_message.reply_text(
+            "📋 Siz hali hech qanday mijoz qo'shmagansiz.",
+            reply_markup=user_main_menu_kb(),
+        )
+        return
+
+    clients = await get_my_clients(uid, limit=PAGE_SIZE, offset=page * PAGE_SIZE)
+    lines   = []
+    for i, c in enumerate(clients, start=page * PAGE_SIZE + 1):
+        turi = c["savdo_turi"] or "—"
+        lines.append(
+            f"{i}. *{c['ism']}* — {c['telefon'] or '—'}\n"
+            f"   🏷 {turi} | 📍 {c['manzil'] or '—'} | `/mijoz {c['id']}`"
+        )
+
+    text = (
+        f"📋 *Mening mijozlarim* (jami: {total} ta)\n"
+        f"Sahifa {page + 1}\n\n" + "\n\n".join(lines)
+    )
+    pag_kb = pagination_kb(page, total, PAGE_SIZE, "myclients")
+    await update.effective_message.reply_text(
+        text, parse_mode="Markdown",
+        reply_markup=pag_kb if pag_kb else user_main_menu_kb(),
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MIJOZLAR RO'YXATI
