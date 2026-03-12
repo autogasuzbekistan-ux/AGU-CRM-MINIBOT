@@ -25,31 +25,40 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     db_user = await get_user(user.id)
 
+    welcome = (
+        f"Assalom alaikum, *{user.full_name}*!\n\n"
+        f"🏢 *AGU CRM* ga Xush kelibsiz!\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"Siz O'zbekiston bo'ylab yagona LPG va CNG sohasida "
+        f"tizimlashgan mijozlar bo'limiga keldingiz!"
+    )
+
     if not db_user or not db_user["region_id"]:
         await update.effective_message.reply_text(
-            f"👋 Xush kelibsiz, *{user.full_name}*!\n\n"
-            "🗺 Iltimos, o'z viloyatingizni tanlang:",
+            welcome + "\n\n🗺 Iltimos, o'z shaharingizni tanlang:",
             parse_mode="Markdown",
             reply_markup=regions_kb(include_all=is_admin),
         )
         return
 
-    region_name = REGION_MAP.get(db_user["region_id"], "Barcha viloyatlar 🌍")
+    region_name = REGION_MAP.get(db_user["region_id"], "Barcha shaharlar 🌍")
 
     if is_admin:
         text = (
+            welcome + "\n\n"
             f"👑 *ADMIN PANEL*\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"👤 {user.full_name}\n"
-            f"🗺 Viloyat: *{region_name}*\n\n"
+            f"🏙 Shahar: *{region_name}*\n\n"
             f"Quyidagi amallardan birini tanlang:"
         )
     else:
         text = (
+            welcome + "\n\n"
             f"📋 *Mening menyum*\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"👤 {user.full_name}\n"
-            f"🗺 {region_name}\n\n"
+            f"🏙 {region_name}\n\n"
             f"Nima qilmoqchisiz?"
         )
 
@@ -87,12 +96,12 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
         text = (
             f"👑 *ADMIN PANEL*\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"✅ Viloyat: *{region_name}*\n\n"
+            f"✅ Shahar: *{region_name}*\n\n"
             f"Quyidagi amallardan birini tanlang:"
         )
     else:
         text = (
-            f"✅ Viloyat tanlandi: *{region_name}*\n\n"
+            f"✅ Shahar tanlandi: *{region_name}*\n\n"
             f"Nima qilmoqchisiz?"
         )
 
@@ -106,7 +115,7 @@ async def change_region_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
     await update.effective_message.reply_text(
-        "🗺 Viloyat tanlang:",
+        "🏙 Shahar tanlang:",
         reply_markup=regions_kb(include_all=is_admin),
     )
 
