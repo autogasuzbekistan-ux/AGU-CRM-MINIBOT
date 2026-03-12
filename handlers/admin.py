@@ -68,7 +68,7 @@ async def admin_send_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     db_user   = await get_user(update.effective_user.id)
     region_id = db_user["region_id"] if db_user else None
-    clients   = await get_today_clients(region_id)
+    clients   = [dict(c) for c in await get_today_clients(region_id)]
     today     = date.today().strftime("%Y-%m-%d")
 
     if not clients:

@@ -74,9 +74,17 @@ async def task_title(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def task_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-    ctx.user_data["task_client_id"] = None if text == "0" else (
-        int(text) if text.isdigit() else None
-    )
+    if text == "0":
+        ctx.user_data["task_client_id"] = None
+    elif text.isdigit():
+        ctx.user_data["task_client_id"] = int(text)
+    else:
+        await update.message.reply_text(
+            "❌ Faqat raqam kiriting _(yoki 0 — bog'lamasiz)_:",
+            parse_mode="Markdown",
+            reply_markup=cancel_kb(),
+        )
+        return TASK_CLIENT
     await update.message.reply_text(
         "🗓 Muddat kiriting _(masalan: 2024-12-31 14:00)_\n"
         "_(o'tkazish uchun ➖ yozing)_:",

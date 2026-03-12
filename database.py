@@ -76,6 +76,7 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN kasb_turi TEXT",
             "ALTER TABLE clients ADD COLUMN savdo_turi TEXT",
             "ALTER TABLE clients ADD COLUMN savdo_subturi TEXT",
+            "ALTER TABLE tasks ADD COLUMN notified INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -337,13 +338,22 @@ async def delete_task(task_id: int):
 
 
 async def get_overdue_tasks():
+    """Muddati o'tgan, hali bajarilmagan va xabar berilmagan vazifalar."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sql = """
         SELECT t.*, c.ism as client_ism
         FROM tasks t LEFT JOIN clients c ON t.client_id = c.id
-        WHERE t.bajarilgan = 0 AND t.muddat IS NOT NULL AND t.muddat <= ?
+        WHERE t.bajarilgan = 0 AND t.muddat IS NOT NULL
+          AND t.muddat <= ? AND COALESCE(t.notified, 0) = 0
     """
     async with _connect() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(sql, (now,)) as cur:
             return await cur.fetchall()
+
+
+async def mark_task_notified(task_id: int):
+    """Vazifani 'xabar berildi' deb belgilash."""
+    async with _connect() as db:
+        await db.execute("UPDATE tasks SET notified = 1 WHERE id = ?", (task_id,))
+        await db.commit()

@@ -450,7 +450,6 @@ async def edit_value_received(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     value = update.message.text.strip()
     await update_client(client_id, field, value)
     ctx.user_data.clear()
-    is_admin = _is_admin(update.effective_user.id)
     await update.message.reply_text(
         "✅ *Muvaffaqiyatli yangilandi!*",
         parse_mode="Markdown",

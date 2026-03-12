@@ -6,8 +6,11 @@ Excel eksport:
   - Qo'lda eksport: mening viloyatim / barcha viloyatlar
 """
 import io
+import logging
 from datetime import datetime, date
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -265,8 +268,7 @@ async def send_daily_report(app):
                 parse_mode="Markdown",
             )
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"22:00 hisobot xato (admin {admin_id}): {e}")
+            logger.warning(f"22:00 hisobot xato (admin {admin_id}): {e}")
 
 # ─── VAZIFALAR EXCEL VA BILDIRISHNOMA ─────────────────────────────────────────
 
@@ -333,9 +335,11 @@ async def notify_admins_new_task(bot, task_id: int, sarlavha: str, client_name: 
         "tavsif":      tavsif,
         "region_name": region_name,
     }]
-    wb     = build_task_excel(task_row)
-    buffer = io.BytesIO()
-    wb.save(buffer)
+    wb  = build_task_excel(task_row)
+    buf = io.BytesIO()
+    wb.save(buf)
+    # Bytes sifatida saqlash — har bir admin uchun yangi BytesIO yaratiladi
+    wb_bytes = buf.getvalue()
 
     caption = (
         f"📋 *Yangi eslatma vazifasi qo'shildi!*\n\n"
@@ -347,46 +351,48 @@ async def notify_admins_new_task(bot, task_id: int, sarlavha: str, client_name: 
         f"👤 Qo'shdi: {added_by}\n"
         f"ID: `{task_id}`"
     )
-    import logging
     for admin_id in ADMIN_IDS:
         try:
-            buffer.seek(0)
             await bot.send_document(
                 chat_id=admin_id,
-                document=buffer,
+                document=io.BytesIO(wb_bytes),
                 filename=f"Vazifa_{task_id}_{today}.xlsx",
                 caption=caption,
                 parse_mode="Markdown",
             )
         except Exception as e:
-            logging.getLogger(__name__).warning(f"Vazifa bildirishnoma xato (admin {admin_id}): {e}")
+            logger.warning(f"Vazifa bildirishnoma xato (admin {admin_id}): {e}")
 
 
 # ─── MUDDATI O'TGAN VAZIFALAR ─────────────────────────────────────────────────
 
 async def get_overdue_tasks_and_notify(app):
-    from database import get_overdue_tasks
-    from config import ADMIN_IDS, REGION_MAP
-    import logging
+    from database import get_overdue_tasks, mark_task_notified
     tasks = await get_overdue_tasks()
     if not tasks:
         return
     for t in tasks:
+        client_info = f"\n🔗 Mijoz: *{t['client_ism']}*" if t["client_ism"] else ""
+        msg_text = (
+            f"⏰ *Muddati o'tgan vazifa!*\n\n"
+            f"📝 *{t['sarlavha']}*{client_info}\n"
+            f"📄 {t['tavsif'] or '—'}\n"
+            f"🗓 Muddat: {t['muddat']}\n"
+            f"🗺 {REGION_MAP.get(t['region_id'], '?')}\n"
+            f"ID: `{t['id']}`\n\n"
+            f"_/vazifa {t['id']} — boshqarish uchun_"
+        )
+        sent = False
         for admin_id in ADMIN_IDS:
             try:
-                client_info = f"\n🔗 Mijoz: *{t['client_ism']}*" if t["client_ism"] else ""
                 await app.bot.send_message(
                     chat_id=admin_id,
-                    text=(
-                        f"⏰ *Muddati o'tgan vazifa!*\n\n"
-                        f"📝 *{t['sarlavha']}*{client_info}\n"
-                        f"📄 {t['tavsif'] or '—'}\n"
-                        f"🗓 Muddat: {t['muddat']}\n"
-                        f"🗺 {REGION_MAP.get(t['region_id'], '?')}\n"
-                        f"ID: `{t['id']}`\n\n"
-                        f"_/vazifa {t['id']} — boshqarish uchun_"
-                    ),
+                    text=msg_text,
                     parse_mode="Markdown",
                 )
+                sent = True
             except Exception as e:
-                logging.getLogger(__name__).warning(f"Eslatma xato (admin {admin_id}): {e}")
+                logger.warning(f"Eslatma xato (admin {admin_id}): {e}")
+        # Hech bo'lmaganda bir adminга yuborilsa, qayta xabar bermaylik
+        if sent:
+            await mark_task_notified(t["id"])
