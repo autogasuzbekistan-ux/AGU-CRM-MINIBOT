@@ -97,15 +97,43 @@ async def add_telefon(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     return ADD_LOCATION
 
 async def _coords_to_address(lat: float, lon: float) -> str:
-    """Koordinatalarni aniq manzilga aylantiradi (Nominatim reverse geocoding)."""
+    """Koordinatalarni aniq manzilga aylantiradi (Nominatim reverse geocoding).
+    Qaytaradigan format: Ko'cha, Mahalla, Tuman, Shahar
+    """
     url = "https://nominatim.openstreetmap.org/reverse"
-    params = {"lat": lat, "lon": lon, "format": "json", "addressdetails": 1}
+    params = {"lat": lat, "lon": lon, "format": "json", "addressdetails": 1, "accept-language": "uz,ru,en"}
     headers = {"User-Agent": "AGU-CRM-MINIBOT/1.0"}
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            async with session.get(url, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
+                    addr = data.get("address", {})
+                    parts = []
+                    # Ko'cha / yo'l
+                    road = (addr.get("road") or addr.get("pedestrian")
+                            or addr.get("footway") or addr.get("path")
+                            or addr.get("street"))
+                    if road:
+                        parts.append(road)
+                    # Mahalla / qo'shni
+                    neighbourhood = (addr.get("neighbourhood") or addr.get("quarter")
+                                     or addr.get("suburb") or addr.get("residential"))
+                    if neighbourhood:
+                        parts.append(neighbourhood)
+                    # Tuman / shahar tumani
+                    district = (addr.get("city_district") or addr.get("district")
+                                or addr.get("county") or addr.get("state_district"))
+                    if district:
+                        parts.append(district)
+                    # Shahar / qishloq
+                    city = (addr.get("city") or addr.get("town")
+                            or addr.get("village") or addr.get("municipality"))
+                    if city:
+                        parts.append(city)
+                    if parts:
+                        return ", ".join(parts)
+                    # Zaxira: display_name
                     return data.get("display_name") or f"{lat:.5f}, {lon:.5f}"
     except Exception:
         pass
@@ -451,8 +479,17 @@ async def edit_field_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         return EDIT_VALUE
 
+    if field == "manzil":
+        await query.message.reply_text(
+            "✏️ *Yangi manzil* kiriting yoki lokatsiya yuboring:\n"
+            "_(mahalla, ko'cha, tuman darajasida aniqlanadi)_",
+            parse_mode="Markdown",
+            reply_markup=location_kb(),
+        )
+        return EDIT_VALUE
+
     label_map = {
-        "ism": "Ism-Familya", "telefon": "Telefon", "manzil": "Manzil",
+        "ism": "Ism-Familya", "telefon": "Telefon",
         "kasb_turi": "Kasb turi", "izoh": "Izoh",
     }
     await query.message.reply_text(
@@ -461,6 +498,24 @@ async def edit_field_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         reply_markup=cancel_kb(),
     )
     return EDIT_VALUE
+
+
+async def edit_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Edit flow: GPS lokatsiyani aniq manzilga o'tkazib saqlaydi."""
+    client_id = ctx.user_data.get("edit_client_id")
+    if not client_id:
+        await update.message.reply_text("❌ Xato. Qaytadan urinib ko'ring.")
+        return ConversationHandler.END
+    loc = update.message.location
+    manzil = await _coords_to_address(loc.latitude, loc.longitude)
+    await update_client(client_id, "manzil", manzil)
+    ctx.user_data.clear()
+    await update.message.reply_text(
+        f"✅ *Manzil yangilandi!*\n📍 {manzil}",
+        parse_mode="Markdown",
+        reply_markup=client_detail_kb(client_id),
+    )
+    return ConversationHandler.END
 
 async def edit_turi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query     = update.callback_query
