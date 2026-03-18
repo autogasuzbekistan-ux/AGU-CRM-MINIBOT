@@ -1,3 +1,4 @@
+import aiohttp
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from config import ADMIN_IDS, REGION_MAP, SAVDO_TURLARI, SAVDO_SUBTURLARI
@@ -95,10 +96,26 @@ async def add_telefon(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return ADD_LOCATION
 
+async def _coords_to_address(lat: float, lon: float) -> str:
+    """Koordinatalarni aniq manzilga aylantiradi (Nominatim reverse geocoding)."""
+    url = "https://nominatim.openstreetmap.org/reverse"
+    params = {"lat": lat, "lon": lon, "format": "json", "addressdetails": 1}
+    headers = {"User-Agent": "AGU-CRM-MINIBOT/1.0"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data.get("display_name") or f"{lat:.5f}, {lon:.5f}"
+    except Exception:
+        pass
+    return f"{lat:.5f}, {lon:.5f}"
+
+
 async def add_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Telegram lokatsiya xabari."""
     loc = update.message.location
-    ctx.user_data["manzil"] = f"{loc.latitude:.5f}, {loc.longitude:.5f}"
+    ctx.user_data["manzil"] = await _coords_to_address(loc.latitude, loc.longitude)
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(4)}\n\n"
