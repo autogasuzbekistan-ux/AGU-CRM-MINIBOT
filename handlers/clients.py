@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from config import ADMIN_IDS, REGION_MAP
+from config import ADMIN_IDS, REGION_MAP, SAVDO_TURLARI, SAVDO_SUBTURLARI
 from database import (
     get_user, add_client, get_clients, search_clients,
     get_client_by_id, update_client, delete_client, count_clients,
@@ -9,17 +9,22 @@ from database import (
 from keyboards import (
     clients_menu_kb, client_detail_kb, edit_fields_kb,
     savdo_turi_kb, savdo_subturi_kb,
-    cancel_kb, skip_cancel_kb,
+    savdo_turi_reply_kb, savdo_subturi_reply_kb,
+    location_kb, cancel_kb,
+    BTN_LOCATION_MANUAL,
     confirm_delete_kb, pagination_kb,
     admin_main_menu_kb, user_main_menu_kb,
 )
 
 # ─── HOLATLAR ─────────────────────────────────────────────────────────────────
 (
-    ADD_ISM, ADD_TELEFON, ADD_MANZIL, ADD_KASB,
-    ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI, ADD_IZOH,
+    ADD_ISM, ADD_TELEFON, ADD_LOCATION, ADD_KASB,
+    ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
-) = range(10)
+) = range(9)
+
+# Eski nom uchun alias (boshqa joylarda ishlatilishi mumkin)
+ADD_MANZIL = ADD_LOCATION
 
 PAGE_SIZE = 8
 
@@ -29,7 +34,7 @@ def _is_admin(uid: int) -> bool:
 def _main_kb(is_admin: bool):
     return admin_main_menu_kb() if is_admin else user_main_menu_kb()
 
-def _progress(step: int, total: int = 7) -> str:
+def _progress(step: int, total: int = 6) -> str:
     filled = "▓" * step
     empty  = "░" * (total - step)
     return f"[{filled}{empty}] {step}/{total}"
@@ -84,14 +89,38 @@ async def add_telefon(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(3)}\n\n"
-        f"3️⃣ *Manzil* kiriting:\n_(shahar, tuman, ko'cha)_",
+        f"3️⃣ *Lokatsiya* yuboring yoki manzilni qo'lda kiriting:",
+        parse_mode="Markdown",
+        reply_markup=location_kb(),
+    )
+    return ADD_LOCATION
+
+async def add_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Telegram lokatsiya xabari."""
+    loc = update.message.location
+    ctx.user_data["manzil"] = f"{loc.latitude:.5f}, {loc.longitude:.5f}"
+    await update.message.reply_text(
+        f"➕ *Yangi mijoz qo'shish*\n"
+        f"{_progress(4)}\n\n"
+        f"4️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
-    return ADD_MANZIL
+    return ADD_KASB
 
-async def add_manzil(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    ctx.user_data["manzil"] = update.message.text.strip()
+async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Matn orqali manzil: '✍️ Qo'lda kiritish' tugmasi yoki to'g'ridan-to'g'ri matn."""
+    text = update.message.text.strip()
+    if text == BTN_LOCATION_MANUAL:
+        await update.message.reply_text(
+            f"➕ *Yangi mijoz qo'shish*\n"
+            f"{_progress(3)}\n\n"
+            f"3️⃣ *Manzil* kiriting:\n_(shahar, tuman, ko'cha)_",
+            parse_mode="Markdown",
+            reply_markup=cancel_kb(),
+        )
+        return ADD_LOCATION
+    ctx.user_data["manzil"] = text
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(4)}\n\n"
@@ -108,48 +137,39 @@ async def add_kasb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"{_progress(5)}\n\n"
         f"5️⃣ *Savdo turini* tanlang:",
         parse_mode="Markdown",
-        reply_markup=savdo_turi_kb(),
+        reply_markup=savdo_turi_reply_kb(),
     )
     return ADD_SAVDO_TURI
 
-async def add_savdo_turi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    turi = query.data.replace("turi_", "")
+async def add_savdo_turi_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    turi = update.message.text.strip()
+    if turi not in SAVDO_TURLARI:
+        await update.message.reply_text(
+            "❌ Ro'yxatdan tanlang:",
+            reply_markup=savdo_turi_reply_kb(),
+        )
+        return ADD_SAVDO_TURI
     ctx.user_data["savdo_turi"] = turi
-
-    await query.message.reply_text(
+    await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(6)}\n\n"
         f"6️⃣ *{turi}* — kichik turni tanlang:",
         parse_mode="Markdown",
-        reply_markup=savdo_subturi_kb(turi),
+        reply_markup=savdo_subturi_reply_kb(turi),
     )
     return ADD_SAVDO_SUBTURI
 
-async def add_savdo_subturi_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    subturi = query.data.replace("subturi_", "")
+async def add_savdo_subturi_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    subturi = update.message.text.strip()
+    turi    = ctx.user_data.get("savdo_turi", "")
+    valid   = SAVDO_SUBTURLARI.get(turi, [])
+    if subturi not in valid:
+        await update.message.reply_text(
+            "❌ Ro'yxatdan tanlang:",
+            reply_markup=savdo_subturi_reply_kb(turi),
+        )
+        return ADD_SAVDO_SUBTURI
     ctx.user_data["savdo_subturi"] = subturi
-
-    await query.message.reply_text(
-        f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(7)}\n\n"
-        f"7️⃣ *Izoh* yozing _(ixtiyoriy)_:",
-        parse_mode="Markdown",
-        reply_markup=skip_cancel_kb(),
-    )
-    return ADD_IZOH
-
-async def add_izoh(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    ctx.user_data["izoh"] = update.message.text.strip()
-    return await _save_client(update, ctx)
-
-async def add_izoh_skip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.callback_query:
-        await update.callback_query.answer()
-    ctx.user_data["izoh"] = ""
     return await _save_client(update, ctx)
 
 
@@ -189,8 +209,7 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"💼 {data.get('kasb_turi') or '—'}\n"
         f"🏷 {data.get('savdo_turi') or '—'}\n"
         f"   ↳ {data.get('savdo_subturi') or '—'}\n"
-        f"📝 {data.get('izoh') or '—'}\n"
-        f"🗺 {REGION_MAP.get(region_id, '?')}"
+        f"🏙 {REGION_MAP.get(region_id, '?')}"
     )
     await update.effective_message.reply_text(
         text, parse_mode="Markdown", reply_markup=client_detail_kb(client_id)

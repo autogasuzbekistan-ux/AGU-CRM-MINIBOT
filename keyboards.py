@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from config import REGIONS, SAVDO_TURLARI, SAVDO_SUBTURLARI
 
 # ─── TUGMA MATNLARI (konstanta) ───────────────────────────────────────────────
@@ -30,9 +30,11 @@ BTN_EXPORT_MY      = "📤 Mening viloyatim"
 BTN_EXPORT_ALL     = "🌍 Barcha viloyatlar"
 BTN_EXPORT_CHOOSE  = "🗺 Viloyat tanlash"
 
-BTN_BACK           = "🏠 Asosiy menyu"
-BTN_CANCEL         = "❌ Bekor qilish"
-BTN_SKIP           = "➡️ O'tkazib yuborish"
+BTN_BACK              = "🏠 Asosiy menyu"
+BTN_CANCEL            = "❌ Bekor qilish"
+BTN_SKIP              = "➡️ O'tkazib yuborish"
+BTN_LOCATION_SHARE    = "📍 Lokatsiyamni yuborish"
+BTN_LOCATION_MANUAL   = "✍️ Manzilni qo'lda kiritish"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ASOSIY MENYULAR (ReplyKeyboard)
@@ -99,6 +101,24 @@ def cancel_kb() -> ReplyKeyboardMarkup:
 
 def skip_cancel_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([[BTN_SKIP], [BTN_CANCEL]], resize_keyboard=True)
+
+def location_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup([
+        [KeyboardButton(BTN_LOCATION_SHARE, request_location=True)],
+        [BTN_LOCATION_MANUAL],
+        [BTN_CANCEL],
+    ], resize_keyboard=True)
+
+def savdo_turi_reply_kb() -> ReplyKeyboardMarkup:
+    rows = [[t] for t in SAVDO_TURLARI]
+    rows.append([BTN_CANCEL])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
+
+def savdo_subturi_reply_kb(turi: str) -> ReplyKeyboardMarkup:
+    subtypes = SAVDO_SUBTURLARI.get(turi, [])
+    rows = [[s] for s in subtypes]
+    rows.append([BTN_CANCEL])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # VILOYAT TANLASH (InlineKeyboard — bir martalik amal)

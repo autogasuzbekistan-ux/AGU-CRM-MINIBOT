@@ -17,16 +17,16 @@ from handlers.start import (
 )
 from handlers.clients import (
     clients_menu, client_add_start,
-    add_ism, add_telefon, add_manzil, add_kasb,
-    add_savdo_turi_cb, add_savdo_subturi_cb, add_izoh, add_izoh_skip,
+    add_ism, add_telefon, add_location_geo, add_location_text, add_kasb,
+    add_savdo_turi_msg, add_savdo_subturi_msg,
     client_list, my_client_list, client_search_start, client_search_query,
     client_detail_command, client_detail_callback,
     edit_start_callback, edit_field_callback,
     edit_turi_cb, edit_subturi_cb, edit_value_received, edit_start_ask_id,
     delete_callback, delete_confirm_callback, delete_ask_id, delete_id_received,
     confirm_client_callback,
-    ADD_ISM, ADD_TELEFON, ADD_MANZIL, ADD_KASB,
-    ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI, ADD_IZOH,
+    ADD_ISM, ADD_TELEFON, ADD_LOCATION, ADD_KASB,
+    ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
 )
 from handlers.tasks import (
@@ -52,7 +52,8 @@ from keyboards import (
     BTN_ADD_TASK, BTN_ACTIVE_TASKS, BTN_DONE_TASKS,
     BTN_STATS_GENERAL, BTN_STATS_REGION, BTN_STATS_TYPE, BTN_STATS_SUB,
     BTN_EXPORT_MY, BTN_EXPORT_ALL, BTN_EXPORT_CHOOSE,
-    BTN_BACK, BTN_CANCEL, BTN_SKIP,
+    BTN_BACK, BTN_CANCEL,
+    BTN_LOCATION_MANUAL,
 )
 
 logging.basicConfig(
@@ -80,17 +81,15 @@ def build_add_client_conv() -> ConversationHandler:
             CallbackQueryHandler(client_add_start, pattern="^client_add$"),
         ],
         states={
-            ADD_ISM:           [MessageHandler(filters.TEXT & ~filters.COMMAND, add_ism)],
-            ADD_TELEFON:       [MessageHandler(filters.TEXT & ~filters.COMMAND, add_telefon)],
-            ADD_MANZIL:        [MessageHandler(filters.TEXT & ~filters.COMMAND, add_manzil)],
-            ADD_KASB:          [MessageHandler(filters.TEXT & ~filters.COMMAND, add_kasb)],
-            ADD_SAVDO_TURI:    [CallbackQueryHandler(add_savdo_turi_cb,    pattern=r"^turi_")],
-            ADD_SAVDO_SUBTURI: [CallbackQueryHandler(add_savdo_subturi_cb, pattern=r"^subturi_")],
-            ADD_IZOH: [
-                MessageHandler(_txt(BTN_SKIP), add_izoh_skip),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_izoh),
-                CallbackQueryHandler(add_izoh_skip, pattern="^skip_izoh$"),
+            ADD_ISM:     [MessageHandler(filters.TEXT & ~filters.COMMAND, add_ism)],
+            ADD_TELEFON: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_telefon)],
+            ADD_LOCATION: [
+                MessageHandler(filters.LOCATION, add_location_geo),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_location_text),
             ],
+            ADD_KASB:          [MessageHandler(filters.TEXT & ~filters.COMMAND, add_kasb)],
+            ADD_SAVDO_TURI:    [MessageHandler(filters.TEXT & ~filters.COMMAND, add_savdo_turi_msg)],
+            ADD_SAVDO_SUBTURI: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_savdo_subturi_msg)],
         },
         fallbacks=_fallbacks(),
         allow_reentry=True,
