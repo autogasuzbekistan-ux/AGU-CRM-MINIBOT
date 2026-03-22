@@ -78,7 +78,12 @@ async def sync_client_to_sheet(client: dict, region_name: str):
     from config import GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, SPREADSHEET_ID
 
     if not all([GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, SPREADSHEET_ID]):
-        logger.debug("Google Sheets sozlanmagan, skip.")
+        logger.warning(
+            f"Google Sheets sozlanmagan! "
+            f"EMAIL={'✓' if GOOGLE_SERVICE_ACCOUNT_EMAIL else '✗'} "
+            f"PRIVATE_KEY={'✓' if GOOGLE_PRIVATE_KEY else '✗'} "
+            f"SPREADSHEET_ID={'✓' if SPREADSHEET_ID else '✗'}"
+        )
         return
 
     try:
