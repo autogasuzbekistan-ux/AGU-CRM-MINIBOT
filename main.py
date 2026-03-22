@@ -17,7 +17,7 @@ from handlers.start import (
 )
 from handlers.clients import (
     clients_menu, client_add_start,
-    add_ism, add_telefon, add_location_geo, add_location_text, add_kasb,
+    add_telefon, add_location_geo, add_location_text, add_kasb,
     add_savdo_turi_msg, add_savdo_subturi_msg,
     client_list, my_client_list, client_search_start, client_search_query,
     client_detail_command, client_detail_callback,
@@ -26,7 +26,7 @@ from handlers.clients import (
     edit_location_geo,
     delete_callback, delete_confirm_callback, delete_ask_id, delete_id_received,
     confirm_client_callback,
-    ADD_ISM, ADD_TELEFON, ADD_LOCATION, ADD_KASB,
+    ADD_TELEFON, ADD_LOCATION, ADD_KASB,
     ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
 )
@@ -82,7 +82,6 @@ def build_add_client_conv() -> ConversationHandler:
             CallbackQueryHandler(client_add_start, pattern="^client_add$"),
         ],
         states={
-            ADD_ISM:     [MessageHandler(filters.TEXT & ~filters.COMMAND, add_ism)],
             ADD_TELEFON: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_telefon)],
             ADD_LOCATION: [
                 MessageHandler(filters.LOCATION, add_location_geo),

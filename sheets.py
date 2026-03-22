@@ -10,9 +10,14 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 _HEADERS = [
-    "No", "Ism-Familya", "Telefon Raqam", "Manzil",
+    "No", "Telefon Raqam", "Manzil",
     "Kasb turi", "Savdo Turi", "Savdo Subturi",
-    "Viloyat", "Qo'shgan", "Sana", "Izoh",
+    "Viloyat", "Qo'shgan (Username)", "Telegram ID", "Sana", "Izoh",
+]
+
+_STATS_HEADERS = [
+    "#", "Ishchi (Worker)", "Telegram Username", "Telegram ID",
+    "Viloyat", "Qo'shgan mijozlar", "Bonus",
 ]
 
 # Savdo turi bo'yicha qator ranglari (RGB 0-1)
@@ -119,11 +124,11 @@ def _apply_sheet_format(spreadsheet, ws):
                 "fields": "pixelSize",
             }
         },
-        # "Manzil" ustuni — keng (200px), index=3
+        # "Manzil" ustuni — keng (200px), index=2 (Ism olib tashlandi)
         {
             "updateDimensionProperties": {
                 "range": {"sheetId": sid, "dimension": "COLUMNS",
-                          "startIndex": 3, "endIndex": 4},
+                          "startIndex": 2, "endIndex": 3},
                 "properties": {"pixelSize": 200},
                 "fields": "pixelSize",
             }
@@ -174,16 +179,20 @@ def _sync_append(client: dict, region_name: str):
     row_count = len(ws.get_all_values())
     savdo_turi = client.get("savdo_turi", "")
 
+    qoshgan_user = client.get("qoshgan_user", "")
+    qoshgan_id   = client.get("qoshgan_id", "")
+    username_str = f"@{qoshgan_user}" if qoshgan_user else str(qoshgan_id)
+
     ws.append_row([
         row_count,
-        client.get("ism", ""),
         client.get("telefon", ""),
         client.get("manzil", ""),
         client.get("kasb_turi", ""),
         savdo_turi,
         client.get("savdo_subturi", ""),
         region_name,
-        client.get("qoshgan_nomi", ""),
+        username_str,
+        str(qoshgan_id),
         client.get("qoshilgan_vaqt") or datetime.now().strftime("%Y-%m-%d %H:%M"),
         client.get("izoh", ""),
     ])
@@ -208,6 +217,74 @@ async def sync_client_to_sheet(client: dict, region_name: str):
 
     try:
         await asyncio.to_thread(_sync_append, client, region_name)
-        logger.info(f"Google Sheets: '{client.get('ism')}' qo'shildi ✓")
+        logger.info(f"Google Sheets: telefon={client.get('telefon')} qo'shildi ✓")
     except Exception as e:
         logger.warning(f"Google Sheets sync xato: {e}")
+
+
+def _sync_update_stats(stats: list):
+    """Statistika varag'ini yangilaydi (sinxron, thread ichida)."""
+    import gspread
+    from config import SPREADSHEET_ID
+
+    gc = gspread.authorize(_build_creds())
+    sp = gc.open_by_key(SPREADSHEET_ID)
+
+    try:
+        ws = sp.worksheet("Statistika")
+    except gspread.WorksheetNotFound:
+        ws = sp.add_worksheet(title="Statistika", rows=500, cols=len(_STATS_HEADERS))
+
+    ws.clear()
+    ws.append_row(_STATS_HEADERS)
+
+    for i, s in enumerate(stats, 1):
+        worker   = s.get("worker_name") or s.get("full_name") or "—"
+        username = f"@{s['username']}" if s.get("username") else "—"
+        tg_id    = str(s.get("telegram_id", ""))
+        region   = s.get("region_name") or "—"
+        count    = s.get("client_count", 0)
+        ws.append_row([i, worker, username, tg_id, region, count, count])
+
+    # Sarlavha formatini qo'llash
+    sid   = ws.id
+    ncols = len(_STATS_HEADERS)
+    sp.batch_update({"requests": [
+        {
+            "repeatCell": {
+                "range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": 1,
+                           "startColumnIndex": 0, "endColumnIndex": ncols},
+                "cell": {"userEnteredFormat": {
+                    "backgroundColor": {"red": 0.133, "green": 0.545, "blue": 0.133},
+                    "textFormat": {
+                        "bold": True,
+                        "foregroundColor": {"red": 1, "green": 1, "blue": 1},
+                        "fontSize": 11,
+                    },
+                    "horizontalAlignment": "CENTER",
+                }},
+                "fields": "userEnteredFormat",
+            }
+        },
+        {
+            "updateSheetProperties": {
+                "properties": {"sheetId": sid,
+                               "gridProperties": {"frozenRowCount": 1}},
+                "fields": "gridProperties.frozenRowCount",
+            }
+        },
+    ]})
+
+
+async def update_stats_sheet(stats: list):
+    """Foydalanuvchilar statistikasini Google Sheetsga yozadi (background)."""
+    from config import GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, SPREADSHEET_ID
+
+    if not all([GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, SPREADSHEET_ID]):
+        return
+
+    try:
+        await asyncio.to_thread(_sync_update_stats, stats)
+        logger.info("Google Sheets: Statistika varag'i yangilandi ✓")
+    except Exception as e:
+        logger.warning(f"Google Sheets statistika xato: {e}")

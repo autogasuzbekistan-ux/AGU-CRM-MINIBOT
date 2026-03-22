@@ -38,7 +38,7 @@ async def init_db():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS clients (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                ism              TEXT NOT NULL,
+                ism              TEXT DEFAULT '',
                 telefon          TEXT,
                 manzil           TEXT,
                 kasb_turi        TEXT,
@@ -161,7 +161,7 @@ async def add_client(data: dict) -> int:
                  qoshilgan_vaqt, yangilangan_vaqt)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            data["ism"],
+            data.get("ism", ""),
             data.get("telefon", ""),
             data.get("manzil", ""),
             data.get("kasb_turi", ""),
@@ -176,6 +176,23 @@ async def add_client(data: dict) -> int:
         ))
         await db.commit()
         return cur.lastrowid
+
+
+async def get_all_user_stats():
+    """Har bir foydalanuvchining qo'shgan mijozlar soni va statistikasi."""
+    async with _connect() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT u.worker_name, u.username, u.full_name, u.telegram_id,
+                   r.name as region_name,
+                   COUNT(c.id) as client_count
+            FROM users u
+            LEFT JOIN clients c ON u.telegram_id = c.qoshgan_id
+            LEFT JOIN regions r ON u.region_id = r.id
+            GROUP BY u.telegram_id
+            ORDER BY client_count DESC
+        """) as cur:
+            return [dict(row) for row in await cur.fetchall()]
 
 
 async def get_clients(region_id=None, limit: int = 50, offset: int = 0):

@@ -19,19 +19,19 @@ else:
     GOOGLE_PRIVATE_KEY = os.getenv("GOOGLE_PRIVATE_KEY", "").replace("\\n", "\n")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "")
 
-# ─── AGU SHAHARLARI ───────────────────────────────────────────────────────────
+# ─── SHAHARLARI ───────────────────────────────────────────────────────────────
 REGIONS = [
-    {"id": 1,  "name": "AGU Andijon",   "code": "AND"},
-    {"id": 2,  "name": "AGU Namangan",  "code": "NAM"},
-    {"id": 3,  "name": "AGU Qo'qon",   "code": "QOQ"},
-    {"id": 4,  "name": "AGU Toshkent", "code": "TOS"},
-    {"id": 5,  "name": "AGU Guliston", "code": "GUL"},
-    {"id": 6,  "name": "AGU Samarqand","code": "SAM"},
-    {"id": 7,  "name": "AGU Buxoro",   "code": "BUX"},
-    {"id": 8,  "name": "AGU Qarshi",   "code": "QAR"},
-    {"id": 9,  "name": "AGU Denov",    "code": "DEN"},
-    {"id": 10, "name": "AGU Xorazm",   "code": "XOR"},
-    {"id": 11, "name": "AGU Nukus",    "code": "NUK"},
+    {"id": 1,  "name": "Andijon",   "code": "AND"},
+    {"id": 2,  "name": "Namangan",  "code": "NAM"},
+    {"id": 3,  "name": "Qo'qon",   "code": "QOQ"},
+    {"id": 4,  "name": "Toshkent", "code": "TOS"},
+    {"id": 5,  "name": "Guliston", "code": "GUL"},
+    {"id": 6,  "name": "Samarqand","code": "SAM"},
+    {"id": 7,  "name": "Buxoro",   "code": "BUX"},
+    {"id": 8,  "name": "Qarshi",   "code": "QAR"},
+    {"id": 9,  "name": "Denov",    "code": "DEN"},
+    {"id": 10, "name": "Xorazm",   "code": "XOR"},
+    {"id": 11, "name": "Nukus",    "code": "NUK"},
 ]
 REGION_MAP      = {r["id"]: r["name"] for r in REGIONS}
 REGION_CODE_MAP = {r["id"]: r["code"] for r in REGIONS}

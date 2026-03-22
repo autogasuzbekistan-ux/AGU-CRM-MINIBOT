@@ -28,12 +28,13 @@ from keyboards import (
 
 # ─── HOLATLAR ─────────────────────────────────────────────────────────────────
 (
-    ADD_ISM, ADD_TELEFON, ADD_LOCATION, ADD_KASB,
+    ADD_TELEFON, ADD_LOCATION, ADD_KASB,
     ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
-) = range(9)
+) = range(8)
 
-# Eski nom uchun alias (boshqa joylarda ishlatilishi mumkin)
+# Alias (boshqa joylarda ishlatilishi mumkin)
+ADD_ISM    = ADD_TELEFON   # eski alias (shart emas, xavfsizlik uchun)
 ADD_MANZIL = ADD_LOCATION
 
 PAGE_SIZE = 8
@@ -50,7 +51,7 @@ def _is_admin(uid: int) -> bool:
 def _main_kb(is_admin: bool):
     return admin_main_menu_kb() if is_admin else user_main_menu_kb()
 
-def _progress(step: int, total: int = 6) -> str:
+def _progress(step: int, total: int = 5) -> str:
     filled = "▓" * step
     empty  = "░" * (total - step)
     return f"[{filled}{empty}] {step}/{total}"
@@ -83,18 +84,7 @@ async def client_add_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(1)}\n\n"
-        f"1️⃣ *Ism va familiya* kiriting:",
-        parse_mode="Markdown",
-        reply_markup=cancel_kb(),
-    )
-    return ADD_ISM
-
-async def add_ism(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    ctx.user_data["ism"] = update.message.text.strip()
-    await update.message.reply_text(
-        f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(2)}\n\n"
-        f"2️⃣ *Telefon raqam* kiriting:\n_(masalan: +998901234567)_",
+        f"1️⃣ *Telefon raqam* kiriting:\n_(masalan: +998901234567)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
@@ -104,8 +94,8 @@ async def add_telefon(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["telefon"] = update.message.text.strip()
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(3)}\n\n"
-        f"3️⃣ *Lokatsiya* yuboring yoki manzilni qo'lda kiriting:",
+        f"{_progress(2)}\n\n"
+        f"2️⃣ *Lokatsiya* yuboring yoki manzilni qo'lda kiriting:",
         parse_mode="Markdown",
         reply_markup=location_kb(),
     )
@@ -161,8 +151,8 @@ async def add_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["manzil"] = await _coords_to_address(loc.latitude, loc.longitude)
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(4)}\n\n"
-        f"4️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
+        f"{_progress(3)}\n\n"
+        f"3️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
@@ -174,8 +164,8 @@ async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if text == BTN_LOCATION_MANUAL:
         await update.message.reply_text(
             f"➕ *Yangi mijoz qo'shish*\n"
-            f"{_progress(3)}\n\n"
-            f"3️⃣ *Manzil* kiriting:\n_(shahar, tuman, ko'cha)_",
+            f"{_progress(2)}\n\n"
+            f"2️⃣ *Manzil* kiriting:\n_(shahar, tuman, ko'cha)_",
             parse_mode="Markdown",
             reply_markup=cancel_kb(),
         )
@@ -183,8 +173,8 @@ async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["manzil"] = text
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(4)}\n\n"
-        f"4️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
+        f"{_progress(3)}\n\n"
+        f"3️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
@@ -194,8 +184,8 @@ async def add_kasb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["kasb_turi"] = update.message.text.strip()
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(5)}\n\n"
-        f"5️⃣ *Savdo turini* tanlang:",
+        f"{_progress(4)}\n\n"
+        f"4️⃣ *Savdo turini* tanlang:",
         parse_mode="Markdown",
         reply_markup=savdo_turi_reply_kb(),
     )
@@ -212,8 +202,8 @@ async def add_savdo_turi_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["savdo_turi"] = turi
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(6)}\n\n"
-        f"6️⃣ *{turi}* — kichik turni tanlang:",
+        f"{_progress(5)}\n\n"
+        f"5️⃣ *{turi}* — kichik turni tanlang:",
         parse_mode="Markdown",
         reply_markup=savdo_subturi_reply_kb(turi),
     )
@@ -253,6 +243,7 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     display_name = await _get_display_name(user.id, user.full_name)
     data = {
         **ctx.user_data,
+        "ism":          "",   # ism endi so'ralmasdi
         "region_id":    region_id,
         "qoshgan_id":   user.id,
         "qoshgan_user": user.username or "",
@@ -262,20 +253,24 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     is_admin  = _is_admin(user.id)
 
     # Google Sheets sync (background — xato bot'ni to'xtatmaydi)
-    from sheets import sync_client_to_sheet
+    from sheets import sync_client_to_sheet, update_stats_sheet
+    from database import get_all_user_stats
     region_name = REGION_MAP.get(region_id, "Noma'lum")
     asyncio.ensure_future(sync_client_to_sheet(dict(data), region_name))
+    stats = await get_all_user_stats()
+    asyncio.ensure_future(update_stats_sheet(stats))
 
+    username_display = f"@{user.username}" if user.username else f"ID:{user.id}"
     text = (
         f"✅ *Mijoz muvaffaqiyatli saqlandi!*\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 *{_esc(data['ism'])}*\n"
         f"📞 {_esc(data.get('telefon') or '—')}\n"
         f"📍 {_esc(data.get('manzil') or '—')}\n"
         f"💼 {_esc(data.get('kasb_turi') or '—')}\n"
         f"🏷 {_esc(data.get('savdo_turi') or '—')}\n"
         f"   ↳ {_esc(data.get('savdo_subturi') or '—')}\n"
-        f"🏙 {_esc(REGION_MAP.get(region_id, '?'))}"
+        f"🏙 {_esc(REGION_MAP.get(region_id, '?'))}\n"
+        f"👤 Qo'shgan: {_esc(display_name)} ({_esc(username_display)})"
     )
     await update.effective_message.reply_text(
         text, parse_mode="Markdown", reply_markup=client_detail_kb(client_id)
@@ -309,8 +304,9 @@ async def my_client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     lines   = []
     for i, c in enumerate(clients, start=page * PAGE_SIZE + 1):
         turi = c["savdo_turi"] or "—"
+        label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
         lines.append(
-            f"{i}. *{c['ism']}* — {c['telefon'] or '—'}\n"
+            f"{i}. *{label}* — {c['telefon'] or '—'}\n"
             f"   🏷 {turi} | 📍 {c['manzil'] or '—'} | `/mijoz {c['id']}`"
         )
 
@@ -348,9 +344,10 @@ async def client_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     clients = await get_clients(region_id, limit=PAGE_SIZE, offset=page * PAGE_SIZE)
     lines = []
     for i, c in enumerate(clients, start=page * PAGE_SIZE + 1):
-        turi = c['savdo_turi'] or '—'
+        turi  = c['savdo_turi'] or '—'
+        label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
         lines.append(
-            f"{i}. *{c['ism']}* — {c['telefon'] or '—'}\n"
+            f"{i}. *{label}* — {c['telefon'] or '—'}\n"
             f"   🏷 {turi} | 🗺 {REGION_MAP.get(c['region_id'], '?')} | `/mijoz {c['id']}`"
         )
 
@@ -397,8 +394,9 @@ async def client_search_query(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     lines = []
     for i, c in enumerate(results, 1):
+        label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
         lines.append(
-            f"{i}. *{c['ism']}* — {c['telefon'] or '—'}\n"
+            f"{i}. *{label}* — {c['telefon'] or '—'}\n"
             f"   📍 {c['manzil'] or '—'} | 💼 {c['kasb_turi'] or '—'}\n"
             f"   🏷 {c['savdo_turi'] or '—'} → {c['savdo_subturi'] or '—'}\n"
             f"   🗺 {REGION_MAP.get(c['region_id'], '?')} | `/mijoz {c['id']}`"
@@ -438,8 +436,10 @@ async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE, client_id
         await update.effective_message.reply_text("❌ Mijoz topilmadi!")
         return
 
+    label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
+    qoshgan_user = f"@{c['qoshgan_user']}" if c['qoshgan_user'] else f"ID:{c['qoshgan_id']}"
     text = (
-        f"👤 *{_esc(c['ism'])}*  `(ID: {c['id']})`\n"
+        f"📞 *{_esc(label)}*  `(ID: {c['id']})`\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"📞 Telefon:       {_esc(c['telefon'] or '—')}\n"
         f"📍 Manzil:        {_esc(c['manzil'] or '—')}\n"
@@ -449,7 +449,7 @@ async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE, client_id
         f"📝 Izoh:          {_esc(c['izoh'] or '—')}\n"
         f"🗺 Viloyat:       {_esc(REGION_MAP.get(c['region_id'], '?'))}\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 Qo'shgan:      {_esc(c['qoshgan_nomi'])} (@{_esc(c['qoshgan_user'])})\n"
+        f"👤 Qo'shgan:      {_esc(c['qoshgan_nomi'])} ({_esc(qoshgan_user)})\n"
         f"🕐 Qo'shilgan:    {c['qoshilgan_vaqt']}\n"
         f"🔄 Yangilangan:   {c['yangilangan_vaqt']}"
     )
@@ -471,8 +471,9 @@ async def edit_start_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
 
     ctx.user_data["edit_client_id"] = client_id
+    label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
     await query.message.reply_text(
-        f"✏️ *{c['ism']}* ni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?",
+        f"✏️ *{label}* ni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?",
         parse_mode="Markdown",
         reply_markup=edit_fields_kb(client_id),
     )
@@ -589,8 +590,9 @@ async def edit_value_received(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             return EDIT_VALUE
         ctx.user_data["edit_client_id"]    = client_id
         ctx.user_data["awaiting_edit_id"]  = False
+        label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
         await update.message.reply_text(
-            f"✏️ *{c['ism']}* ni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?",
+            f"✏️ *{label}* ni tahrirlash\n\nQaysi maydonni o'zgartirmoqchisiz?",
             parse_mode="Markdown",
             reply_markup=edit_fields_kb(client_id),
         )
@@ -633,8 +635,9 @@ async def delete_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not c:
         await query.message.reply_text("❌ Mijoz topilmadi!")
         return
+    label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
     await query.message.reply_text(
-        f"🗑 *{c['ism']}* ni o'chirishni tasdiqlaysizmi?\n"
+        f"🗑 *{label}* ni o'chirishni tasdiqlaysizmi?\n"
         "_(Barcha bog'liq vazifalar ham o'chadi)_",
         parse_mode="Markdown",
         reply_markup=confirm_delete_kb("delclient", client_id),
@@ -669,8 +672,9 @@ async def delete_id_received(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not c:
         await update.message.reply_text("❌ Topilmadi. Boshqa ID:", reply_markup=cancel_kb())
         return DELETE_CONFIRM
+    label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
     await update.message.reply_text(
-        f"🗑 *{c['ism']}* ni o'chirishni tasdiqlaysizmi?",
+        f"🗑 *{label}* ni o'chirishni tasdiqlaysizmi?",
         parse_mode="Markdown",
         reply_markup=confirm_delete_kb("delclient", client_id),
     )
