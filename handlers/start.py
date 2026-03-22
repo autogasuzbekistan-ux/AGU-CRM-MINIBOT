@@ -169,7 +169,7 @@ async def handle_worker_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
     await set_worker_name(user.id, worker_name)
 
     salom = (
-        f"☝️ <b>Bismillahi Rohmanir Rohiym!</b>\n\n"
+        f"<b>بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ</b>\n\n"
         f"Assalomu Alaykum, <b>{_esc(worker_name)}</b>! 🤝\n\n"
         f"🌟 Sizga Alloh taolo kuch-quvvat bersin,\n"
         f"ishlaringiz unumli va barakali bo'lsin!\n\n"
