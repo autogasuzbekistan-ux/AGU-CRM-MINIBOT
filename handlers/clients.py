@@ -28,13 +28,11 @@ from keyboards import (
 
 # ─── HOLATLAR ─────────────────────────────────────────────────────────────────
 (
-    ADD_TELEFON, ADD_LOCATION, ADD_KASB,
+    ADD_ISM, ADD_TELEFON, ADD_TELEFON2, ADD_LOCATION, ADD_KASB,
     ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
-) = range(8)
+) = range(10)
 
-# Alias (boshqa joylarda ishlatilishi mumkin)
-ADD_ISM    = ADD_TELEFON   # eski alias (shart emas, xavfsizlik uchun)
 ADD_MANZIL = ADD_LOCATION
 
 PAGE_SIZE = 8
@@ -51,7 +49,7 @@ def _is_admin(uid: int) -> bool:
 def _main_kb(is_admin: bool):
     return admin_main_menu_kb() if is_admin else user_main_menu_kb()
 
-def _progress(step: int, total: int = 5) -> str:
+def _progress(step: int, total: int = 7) -> str:
     filled = "▓" * step
     empty  = "░" * (total - step)
     return f"[{filled}{empty}] {step}/{total}"
@@ -84,7 +82,18 @@ async def client_add_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(1)}\n\n"
-        f"1️⃣ *Telefon raqam* kiriting:\n_(masalan: +998901234567)_",
+        f"1️⃣ *Ism va familiya* kiriting:",
+        parse_mode="Markdown",
+        reply_markup=cancel_kb(),
+    )
+    return ADD_ISM
+
+async def add_ism(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    ctx.user_data["ism"] = update.message.text.strip()
+    await update.message.reply_text(
+        f"➕ *Yangi mijoz qo'shish*\n"
+        f"{_progress(2)}\n\n"
+        f"2️⃣ *Telefon raqam* kiriting:\n_(masalan: +998901234567)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
@@ -94,8 +103,20 @@ async def add_telefon(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["telefon"] = update.message.text.strip()
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(2)}\n\n"
-        f"2️⃣ *Lokatsiya* yuboring yoki manzilni qo'lda kiriting:",
+        f"{_progress(3)}\n\n"
+        f"3️⃣ *Qo'shimcha telefon raqam* kiriting:\n_(yo'q bo'lsa — deb yozing)_",
+        parse_mode="Markdown",
+        reply_markup=cancel_kb(),
+    )
+    return ADD_TELEFON2
+
+async def add_telefon2(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    val = update.message.text.strip()
+    ctx.user_data["telefon2"] = "" if val in ("—", "-", "yo'q", "yoq") else val
+    await update.message.reply_text(
+        f"➕ *Yangi mijoz qo'shish*\n"
+        f"{_progress(4)}\n\n"
+        f"4️⃣ *Lokatsiya* yuboring yoki manzilni qo'lda kiriting:",
         parse_mode="Markdown",
         reply_markup=location_kb(),
     )
@@ -151,8 +172,8 @@ async def add_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["manzil"] = await _coords_to_address(loc.latitude, loc.longitude)
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(3)}\n\n"
-        f"3️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
+        f"{_progress(5)}\n\n"
+        f"5️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
@@ -164,8 +185,8 @@ async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if text == BTN_LOCATION_MANUAL:
         await update.message.reply_text(
             f"➕ *Yangi mijoz qo'shish*\n"
-            f"{_progress(2)}\n\n"
-            f"2️⃣ *Manzil* kiriting:\n_(shahar, tuman, ko'cha)_",
+            f"{_progress(4)}\n\n"
+            f"4️⃣ *Manzil* kiriting:\n_(shahar, tuman, ko'cha)_",
             parse_mode="Markdown",
             reply_markup=cancel_kb(),
         )
@@ -173,8 +194,8 @@ async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["manzil"] = text
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(3)}\n\n"
-        f"3️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
+        f"{_progress(5)}\n\n"
+        f"5️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
         parse_mode="Markdown",
         reply_markup=cancel_kb(),
     )
@@ -184,8 +205,8 @@ async def add_kasb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["kasb_turi"] = update.message.text.strip()
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(4)}\n\n"
-        f"4️⃣ *Savdo turini* tanlang:",
+        f"{_progress(6)}\n\n"
+        f"6️⃣ *Savdo turini* tanlang:",
         parse_mode="Markdown",
         reply_markup=savdo_turi_reply_kb(),
     )
@@ -202,8 +223,8 @@ async def add_savdo_turi_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["savdo_turi"] = turi
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(5)}\n\n"
-        f"5️⃣ *{turi}* — kichik turni tanlang:",
+        f"{_progress(7)}\n\n"
+        f"7️⃣ *{turi}* — kichik turni tanlang:",
         parse_mode="Markdown",
         reply_markup=savdo_subturi_reply_kb(turi),
     )
@@ -243,7 +264,6 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     display_name = await _get_display_name(user.id, user.full_name)
     data = {
         **ctx.user_data,
-        "ism":          "",   # ism endi so'ralmasdi
         "region_id":    region_id,
         "qoshgan_id":   user.id,
         "qoshgan_user": user.username or "",
@@ -261,10 +281,13 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     asyncio.ensure_future(update_stats_sheet(stats))
 
     username_display = f"@{user.username}" if user.username else f"ID:{user.id}"
+    telefon2_line = f"📞 Qo'shimcha: {_esc(data['telefon2'])}\n" if data.get("telefon2") else ""
     text = (
         f"✅ *Mijoz muvaffaqiyatli saqlandi!*\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 *{_esc(data.get('ism') or '—')}*\n"
         f"📞 {_esc(data.get('telefon') or '—')}\n"
+        f"{telefon2_line}"
         f"📍 {_esc(data.get('manzil') or '—')}\n"
         f"💼 {_esc(data.get('kasb_turi') or '—')}\n"
         f"🏷 {_esc(data.get('savdo_turi') or '—')}\n"
@@ -438,10 +461,12 @@ async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE, client_id
 
     label = c['ism'] if c['ism'] else (c['telefon'] or f"Mijoz #{c['id']}")
     qoshgan_user = f"@{c['qoshgan_user']}" if c['qoshgan_user'] else f"ID:{c['qoshgan_id']}"
+    telefon2_line = f"📞 Qo'shimcha:    {_esc(c['telefon2'])}\n" if c.get('telefon2') else ""
     text = (
-        f"📞 *{_esc(label)}*  `(ID: {c['id']})`\n"
+        f"👤 *{_esc(label)}*  `(ID: {c['id']})`\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"📞 Telefon:       {_esc(c['telefon'] or '—')}\n"
+        f"{telefon2_line}"
         f"📍 Manzil:        {_esc(c['manzil'] or '—')}\n"
         f"💼 Kasb turi:     {_esc(c['kasb_turi'] or '—')}\n"
         f"🏷 Savdo turi:    {_esc(c['savdo_turi'] or '—')}\n"

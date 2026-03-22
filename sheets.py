@@ -10,7 +10,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 _HEADERS = [
-    "No", "Telefon Raqam", "Manzil",
+    "No", "Ism-Familya", "Telefon Raqam", "Qo'shimcha Telefon", "Manzil",
     "Kasb turi", "Savdo Turi", "Savdo Subturi",
     "Viloyat", "Qo'shgan (Username)", "Telegram ID", "Sana", "Izoh",
 ]
@@ -124,11 +124,11 @@ def _apply_sheet_format(spreadsheet, ws):
                 "fields": "pixelSize",
             }
         },
-        # "Manzil" ustuni — keng (200px), index=2 (Ism olib tashlandi)
+        # "Manzil" ustuni — keng (200px), index=4
         {
             "updateDimensionProperties": {
                 "range": {"sheetId": sid, "dimension": "COLUMNS",
-                          "startIndex": 2, "endIndex": 3},
+                          "startIndex": 4, "endIndex": 5},
                 "properties": {"pixelSize": 200},
                 "fields": "pixelSize",
             }
@@ -185,7 +185,9 @@ def _sync_append(client: dict, region_name: str):
 
     ws.append_row([
         row_count,
+        client.get("ism", ""),
         client.get("telefon", ""),
+        client.get("telefon2", ""),
         client.get("manzil", ""),
         client.get("kasb_turi", ""),
         savdo_turi,

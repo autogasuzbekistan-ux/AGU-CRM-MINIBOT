@@ -40,6 +40,7 @@ async def init_db():
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
                 ism              TEXT DEFAULT '',
                 telefon          TEXT,
+                telefon2         TEXT DEFAULT '',
                 manzil           TEXT,
                 kasb_turi        TEXT,
                 savdo_turi       TEXT,
@@ -78,6 +79,7 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN savdo_subturi TEXT",
             "ALTER TABLE tasks ADD COLUMN notified INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN worker_name TEXT",
+            "ALTER TABLE clients ADD COLUMN telefon2 TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(col_sql)
@@ -159,13 +161,14 @@ async def add_client(data: dict) -> int:
     async with _connect() as db:
         cur = await db.execute("""
             INSERT INTO clients
-                (ism, telefon, manzil, kasb_turi, savdo_turi, savdo_subturi,
+                (ism, telefon, telefon2, manzil, kasb_turi, savdo_turi, savdo_subturi,
                  izoh, region_id, qoshgan_id, qoshgan_user, qoshgan_nomi,
                  qoshilgan_vaqt, yangilangan_vaqt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get("ism", ""),
             data.get("telefon", ""),
+            data.get("telefon2", ""),
             data.get("manzil", ""),
             data.get("kasb_turi", ""),
             data.get("savdo_turi", ""),
