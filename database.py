@@ -84,6 +84,9 @@ async def init_db():
             except Exception:
                 pass
 
+        # ism NULL bo'lgan eski yozuvlarni bo'sh qatorga o'zgartirish
+        await db.execute("UPDATE clients SET ism = '' WHERE ism IS NULL")
+
         for r in REGIONS:
             await db.execute(
                 "INSERT OR REPLACE INTO regions (id, name, code) VALUES (?, ?, ?)",
