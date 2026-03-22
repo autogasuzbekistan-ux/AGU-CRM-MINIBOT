@@ -52,6 +52,19 @@ REGION_WORKERS = {
     11: ["Nizomjon"],                           # Nukus
 }
 
+# ─── KASB TURLARI ──────────────────────────────────────────────────────────────
+KASB_TURLARI = [
+    "Tadbirkor",
+    "Fermer",
+    "Shifokor",
+    "O'qituvchi",
+    "Muhandis",
+    "Haydovchi",
+    "Savdogar",
+    "Qurilishchi",
+    "Boshqa",
+]
+
 # ─── SAVDO TURLARI ─────────────────────────────────────────────────────────────
 # Asosiy 3 tur
 SAVDO_TURLARI = ["Ulgurji savdo", "Chakana savdo", "Servis"]

@@ -1,5 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
-from config import REGIONS, SAVDO_TURLARI, SAVDO_SUBTURLARI, REGION_WORKERS
+from config import REGIONS, SAVDO_TURLARI, SAVDO_SUBTURLARI, REGION_WORKERS, KASB_TURLARI
 
 # ─── TUGMA MATNLARI (konstanta) ───────────────────────────────────────────────
 BTN_CLIENTS        = "👥 Mijozlar"
@@ -108,6 +108,20 @@ def location_kb() -> ReplyKeyboardMarkup:
         [BTN_LOCATION_MANUAL],
         [BTN_CANCEL],
     ], resize_keyboard=True)
+
+def kasb_turi_reply_kb() -> ReplyKeyboardMarkup:
+    """Kasb turlari — 2 tadan qator."""
+    rows = []
+    row = []
+    for k in KASB_TURLARI:
+        row.append(k)
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([BTN_CANCEL])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 def savdo_turi_reply_kb() -> ReplyKeyboardMarkup:
     rows = [[t] for t in SAVDO_TURLARI]
