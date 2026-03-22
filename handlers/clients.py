@@ -30,6 +30,12 @@ ADD_MANZIL = ADD_LOCATION
 
 PAGE_SIZE = 8
 
+def _esc(text) -> str:
+    """Markdown v1 maxsus belgilarini ekranlaydi."""
+    for ch in ['_', '*', '`', '[']:
+        text = str(text).replace(ch, f'\\{ch}')
+    return text
+
 def _is_admin(uid: int) -> bool:
     return uid in ADMIN_IDS
 
@@ -254,13 +260,13 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = (
         f"✅ *Mijoz muvaffaqiyatli saqlandi!*\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 *{data['ism']}*\n"
-        f"📞 {data.get('telefon') or '—'}\n"
-        f"📍 {data.get('manzil') or '—'}\n"
-        f"💼 {data.get('kasb_turi') or '—'}\n"
-        f"🏷 {data.get('savdo_turi') or '—'}\n"
-        f"   ↳ {data.get('savdo_subturi') or '—'}\n"
-        f"🏙 {REGION_MAP.get(region_id, '?')}"
+        f"👤 *{_esc(data['ism'])}*\n"
+        f"📞 {_esc(data.get('telefon') or '—')}\n"
+        f"📍 {_esc(data.get('manzil') or '—')}\n"
+        f"💼 {_esc(data.get('kasb_turi') or '—')}\n"
+        f"🏷 {_esc(data.get('savdo_turi') or '—')}\n"
+        f"   ↳ {_esc(data.get('savdo_subturi') or '—')}\n"
+        f"🏙 {_esc(REGION_MAP.get(region_id, '?'))}"
     )
     await update.effective_message.reply_text(
         text, parse_mode="Markdown", reply_markup=client_detail_kb(client_id)
@@ -424,17 +430,17 @@ async def _show_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE, client_id
         return
 
     text = (
-        f"👤 *{c['ism']}*  `(ID: {c['id']})`\n"
+        f"👤 *{_esc(c['ism'])}*  `(ID: {c['id']})`\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"📞 Telefon:       {c['telefon'] or '—'}\n"
-        f"📍 Manzil:        {c['manzil'] or '—'}\n"
-        f"💼 Kasb turi:     {c['kasb_turi'] or '—'}\n"
-        f"🏷 Savdo turi:    {c['savdo_turi'] or '—'}\n"
-        f"   ↳ Kichik tur:  {c['savdo_subturi'] or '—'}\n"
-        f"📝 Izoh:          {c['izoh'] or '—'}\n"
-        f"🗺 Viloyat:       {REGION_MAP.get(c['region_id'], '?')}\n"
+        f"📞 Telefon:       {_esc(c['telefon'] or '—')}\n"
+        f"📍 Manzil:        {_esc(c['manzil'] or '—')}\n"
+        f"💼 Kasb turi:     {_esc(c['kasb_turi'] or '—')}\n"
+        f"🏷 Savdo turi:    {_esc(c['savdo_turi'] or '—')}\n"
+        f"   ↳ Kichik tur:  {_esc(c['savdo_subturi'] or '—')}\n"
+        f"📝 Izoh:          {_esc(c['izoh'] or '—')}\n"
+        f"🗺 Viloyat:       {_esc(REGION_MAP.get(c['region_id'], '?'))}\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 Qo'shgan:      {c['qoshgan_nomi']} (@{c['qoshgan_user']})\n"
+        f"👤 Qo'shgan:      {_esc(c['qoshgan_nomi'])} (@{_esc(c['qoshgan_user'])})\n"
         f"🕐 Qo'shilgan:    {c['qoshilgan_vaqt']}\n"
         f"🔄 Yangilangan:   {c['yangilangan_vaqt']}"
     )
