@@ -36,6 +36,22 @@ REGIONS = [
 REGION_MAP      = {r["id"]: r["name"] for r in REGIONS}
 REGION_CODE_MAP = {r["id"]: r["code"] for r in REGIONS}
 
+# ─── HAR BIR SHAHARDAGI ISHCHILAR ─────────────────────────────────────────────
+# region_id → ishchilar ro'yxati (Qo'qon va Toshkentda bir nechta)
+REGION_WORKERS = {
+    1:  ["Xayotjon"],                           # Andijon
+    2:  ["Baxromjon"],                          # Namangan
+    3:  ["Rashidjon", "Xurshidjon", "Asrorxon"],# Qo'qon  (3 do'kon)
+    4:  ["Sherxon", "Maqsudjon"],               # Toshkent (2 do'kon)
+    5:  ["Rustamjon"],                          # Guliston
+    6:  ["Rustamxon"],                          # Samarqand
+    7:  ["Oybekjon"],                           # Buxoro
+    8:  ["Javohir"],                            # Qarshi
+    9:  ["Jahongir"],                           # Denov
+    10: ["Dilshodjon"],                         # Xorazm
+    11: ["Nizomjon"],                           # Nukus
+}
+
 # ─── SAVDO TURLARI ─────────────────────────────────────────────────────────────
 # Asosiy 3 tur
 SAVDO_TURLARI = ["Ulgurji savdo", "Chakana savdo", "Servis"]

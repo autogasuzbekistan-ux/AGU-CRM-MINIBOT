@@ -1,9 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from config import ADMIN_IDS, REGION_MAP
-from database import get_user, upsert_user, set_user_region
+from config import ADMIN_IDS, REGION_MAP, REGION_WORKERS
+from database import get_user, upsert_user, set_user_region, set_worker_name
 from keyboards import (
-    admin_main_menu_kb, user_main_menu_kb, regions_kb,
+    admin_main_menu_kb, user_main_menu_kb, regions_kb, workers_kb,
     BTN_CANCEL,
 )
 
@@ -48,7 +48,24 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    region_name = REGION_MAP.get(db_user["region_id"], "Barcha shaharlar 🌍")
+    region_name  = REGION_MAP.get(db_user["region_id"], "Barcha shaharlar 🌍")
+    worker_name  = db_user["worker_name"] if db_user["worker_name"] else None
+
+    # Admin bo'lmagan va worker_name yo'q bo'lsa — ishchi tanlash
+    if not is_admin and not worker_name:
+        workers = REGION_WORKERS.get(db_user["region_id"], [])
+        if len(workers) > 1:
+            await update.effective_message.reply_text(
+                f"🏙 <b>{_esc(region_name)}</b>\n\n"
+                f"👤 Iltimos, o'z ismingizni tanlang:",
+                parse_mode="HTML",
+                reply_markup=workers_kb(db_user["region_id"]),
+            )
+            return
+        elif len(workers) == 1:
+            # Bitta ishchi — avtomatik o'rnatish
+            await set_worker_name(user.id, workers[0])
+            worker_name = workers[0]
 
     if is_admin:
         text = (
@@ -60,11 +77,12 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"Quyidagi amallardan birini tanlang:"
         )
     else:
+        wname = worker_name or user.full_name
         text = (
             welcome + "\n\n"
             f"📋 <b>Mening menyum</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 {_esc(user.full_name)}\n"
+            f"👤 {_esc(wname)}\n"
             f"🏙 {_esc(region_name)}\n\n"
             f"Nima qilmoqchisiz?"
         )
@@ -87,6 +105,7 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
             return
         await set_user_region(user.id, None)
         region_name = "Barcha shaharlar 🌍"
+        region_id   = None
     else:
         region_id = int(data.split("_")[1])
         await set_user_region(user.id, region_id)
@@ -98,6 +117,20 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
         full_name=user.full_name,
         role="admin" if is_admin else "manager",
     )
+
+    # Admin emas va bir nechta ishchi bor → ishchi tanlash
+    if not is_admin and region_id:
+        workers = REGION_WORKERS.get(region_id, [])
+        if len(workers) > 1:
+            await query.message.reply_text(
+                f"🏙 <b>{_esc(region_name)}</b>\n\n"
+                f"👤 Iltimos, o'z ismingizni tanlang:",
+                parse_mode="HTML",
+                reply_markup=workers_kb(region_id),
+            )
+            return
+        elif len(workers) == 1:
+            await set_worker_name(user.id, workers[0])
 
     if is_admin:
         text = (
@@ -114,6 +147,43 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
 
     kb = admin_main_menu_kb() if is_admin else user_main_menu_kb()
     await query.message.reply_text(text, parse_mode="HTML", reply_markup=kb)
+
+
+# ─── ISHCHI TANLASH ───────────────────────────────────────────────────────────
+
+async def handle_worker_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi o'z ismini tanlaganda chaqiriladi."""
+    query = update.callback_query
+    await query.answer()
+    user  = update.effective_user
+
+    # callback_data: "worker_{region_id}_{index}"
+    parts     = query.data.split("_")
+    region_id = int(parts[1])
+    idx       = int(parts[2])
+
+    workers     = REGION_WORKERS.get(region_id, [])
+    worker_name = workers[idx] if idx < len(workers) else user.full_name
+    region_name = REGION_MAP.get(region_id, "Noma'lum")
+
+    await set_worker_name(user.id, worker_name)
+
+    salom = (
+        f"☝️ <b>Bismillahi Rohmanir Rohiym!</b>\n\n"
+        f"Assalomu Alaykum, <b>{_esc(worker_name)}</b>! 🤝\n\n"
+        f"🌟 Sizga Alloh taolo kuch-quvvat bersin,\n"
+        f"ishlaringiz unumli va barakali bo'lsin!\n\n"
+        f"🏙 Shahar: <b>{_esc(region_name)}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"Nima qilmoqchisiz?"
+    )
+
+    await query.message.reply_text(
+        salom,
+        parse_mode="HTML",
+        reply_markup=user_main_menu_kb(),
+    )
+
 
 # ─── VILOYAT O'ZGARTIRISH ─────────────────────────────────────────────────────
 

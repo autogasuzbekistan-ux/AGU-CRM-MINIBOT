@@ -13,7 +13,7 @@ from database import init_db
 # ─── HANDLER IMPORTLAR ────────────────────────────────────────────────────────
 from handlers.start import (
     start, back_to_main, handle_cancel, handle_region_selection,
-    change_region_menu, noop_callback,
+    handle_worker_selection, change_region_menu, noop_callback,
 )
 from handlers.clients import (
     clients_menu, client_add_start,
@@ -233,6 +233,7 @@ def main():
             return await export_region_selected(update, ctx)
         return await handle_region_selection(update, ctx)
 
+    app.add_handler(CallbackQueryHandler(handle_worker_selection,    pattern=r"^worker_"))
     app.add_handler(CallbackQueryHandler(region_router,              pattern=r"^region_"))
     app.add_handler(CallbackQueryHandler(client_detail_callback,     pattern=r"^client_detail_\d+$"))
     app.add_handler(CallbackQueryHandler(delete_callback,            pattern=r"^del_\d+$"))

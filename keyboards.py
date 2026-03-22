@@ -1,5 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
-from config import REGIONS, SAVDO_TURLARI, SAVDO_SUBTURLARI
+from config import REGIONS, SAVDO_TURLARI, SAVDO_SUBTURLARI, REGION_WORKERS
 
 # ─── TUGMA MATNLARI (konstanta) ───────────────────────────────────────────────
 BTN_CLIENTS        = "👥 Mijozlar"
@@ -123,6 +123,18 @@ def savdo_subturi_reply_kb(turi: str) -> ReplyKeyboardMarkup:
 # ═══════════════════════════════════════════════════════════════════════════════
 # VILOYAT TANLASH (InlineKeyboard — bir martalik amal)
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def workers_kb(region_id: int) -> InlineKeyboardMarkup:
+    """Shahar ishchilari — har biri alohida tugma."""
+    workers = REGION_WORKERS.get(region_id, [])
+    buttons = []
+    for i, name in enumerate(workers):
+        buttons.append([InlineKeyboardButton(
+            f"👤 {name}",
+            callback_data=f"worker_{region_id}_{i}"
+        )])
+    return InlineKeyboardMarkup(buttons)
+
 
 def regions_kb(include_all: bool = False) -> InlineKeyboardMarkup:
     buttons, row = [], []

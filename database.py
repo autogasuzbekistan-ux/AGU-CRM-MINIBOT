@@ -77,6 +77,7 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN savdo_turi TEXT",
             "ALTER TABLE clients ADD COLUMN savdo_subturi TEXT",
             "ALTER TABLE tasks ADD COLUMN notified INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN worker_name TEXT",
         ]:
             try:
                 await db.execute(col_sql)
@@ -128,6 +129,15 @@ async def set_user_region(telegram_id: int, region_id):
         await db.execute(
             "UPDATE users SET region_id = ? WHERE telegram_id = ?",
             (region_id, telegram_id)
+        )
+        await db.commit()
+
+
+async def set_worker_name(telegram_id: int, worker_name: str):
+    async with _connect() as db:
+        await db.execute(
+            "UPDATE users SET worker_name = ? WHERE telegram_id = ?",
+            (worker_name, telegram_id)
         )
         await db.commit()
 

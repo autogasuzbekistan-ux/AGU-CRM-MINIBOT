@@ -8,6 +8,14 @@ from database import (
     get_client_by_id, update_client, delete_client, count_clients,
     get_my_clients, count_my_clients,
 )
+
+
+async def _get_display_name(user_id: int, fallback: str) -> str:
+    """Ishchining tanlagan ismi (worker_name) yoki Telegram ismi."""
+    db_user = await get_user(user_id)
+    if db_user and db_user["worker_name"]:
+        return db_user["worker_name"]
+    return fallback
 from keyboards import (
     clients_menu_kb, client_detail_kb, edit_fields_kb,
     savdo_turi_kb, savdo_subturi_kb,
@@ -242,12 +250,13 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         ctx.user_data.clear()
         return ConversationHandler.END
 
+    display_name = await _get_display_name(user.id, user.full_name)
     data = {
         **ctx.user_data,
         "region_id":    region_id,
         "qoshgan_id":   user.id,
         "qoshgan_user": user.username or "",
-        "qoshgan_nomi": user.full_name,
+        "qoshgan_nomi": display_name,
     }
     client_id = await add_client(data)
     is_admin  = _is_admin(user.id)
