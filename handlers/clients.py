@@ -20,7 +20,6 @@ from keyboards import (
     clients_menu_kb, client_detail_kb, edit_fields_kb,
     savdo_turi_kb, savdo_subturi_kb,
     savdo_turi_reply_kb, savdo_subturi_reply_kb,
-    kasb_turi_reply_kb,
     location_kb, cancel_kb,
     BTN_LOCATION_MANUAL,
     confirm_delete_kb, pagination_kb,
@@ -175,9 +174,9 @@ async def add_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(5)}\n\n"
-        f"5️⃣ *Kasb turini* tanlang:",
+        f"5️⃣ *Kasbi* kiriting:",
         parse_mode="Markdown",
-        reply_markup=kasb_turi_reply_kb(),
+        reply_markup=cancel_kb(),
     )
     return ADD_KASB
 
@@ -197,9 +196,9 @@ async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(5)}\n\n"
-        f"5️⃣ *Kasb turini* tanlang:",
+        f"5️⃣ *Kasbi* kiriting:",
         parse_mode="Markdown",
-        reply_markup=kasb_turi_reply_kb(),
+        reply_markup=cancel_kb(),
     )
     return ADD_KASB
 
