@@ -1,3 +1,4 @@
+import asyncio
 import aiohttp
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -244,6 +245,11 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     }
     client_id = await add_client(data)
     is_admin  = _is_admin(user.id)
+
+    # Google Sheets sync (background — xato bot'ni to'xtatmaydi)
+    from sheets import sync_client_to_sheet
+    region_name = REGION_MAP.get(region_id, "Noma'lum")
+    asyncio.ensure_future(sync_client_to_sheet(dict(data), region_name))
 
     text = (
         f"✅ *Mijoz muvaffaqiyatli saqlandi!*\n"

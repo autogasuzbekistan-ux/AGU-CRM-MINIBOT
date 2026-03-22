@@ -9,6 +9,11 @@ DB_PATH   = os.getenv("DB_PATH", "crm_bot.db")
 _admin_raw = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS  = [int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()]
 
+# ─── GOOGLE SHEETS ─────────────────────────────────────────────────────────────
+GOOGLE_SERVICE_ACCOUNT_EMAIL = os.getenv("GOOGLE_SERVICE_ACCOUNT_EMAIL", "")
+GOOGLE_PRIVATE_KEY = os.getenv("GOOGLE_PRIVATE_KEY", "").replace("\\n", "\n")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "")
+
 # ─── AGU SHAHARLARI ───────────────────────────────────────────────────────────
 REGIONS = [
     {"id": 1,  "name": "AGU Andijon",   "code": "AND"},
