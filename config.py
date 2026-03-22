@@ -11,7 +11,12 @@ ADMIN_IDS  = [int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit
 
 # ─── GOOGLE SHEETS ─────────────────────────────────────────────────────────────
 GOOGLE_SERVICE_ACCOUNT_EMAIL = os.getenv("GOOGLE_SERVICE_ACCOUNT_EMAIL", "")
-GOOGLE_PRIVATE_KEY = os.getenv("GOOGLE_PRIVATE_KEY", "").replace("\\n", "\n")
+_pk_b64 = os.getenv("GOOGLE_PRIVATE_KEY_B64", "")
+if _pk_b64:
+    import base64
+    GOOGLE_PRIVATE_KEY = base64.b64decode(_pk_b64).decode("utf-8")
+else:
+    GOOGLE_PRIVATE_KEY = os.getenv("GOOGLE_PRIVATE_KEY", "").replace("\\n", "\n")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "")
 
 # ─── AGU SHAHARLARI ───────────────────────────────────────────────────────────
