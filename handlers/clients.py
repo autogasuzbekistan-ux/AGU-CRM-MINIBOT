@@ -28,10 +28,12 @@ from keyboards import (
 
 # ─── HOLATLAR ─────────────────────────────────────────────────────────────────
 (
-    ADD_ISM, ADD_TELEFON, ADD_TELEFON2, ADD_LOCATION, ADD_KASB,
+    ADD_ISM, ADD_TELEFON, ADD_TELEFON2, ADD_LOCATION,
     ADD_SAVDO_TURI, ADD_SAVDO_SUBTURI,
     SEARCH_QUERY, EDIT_VALUE, DELETE_CONFIRM,
-) = range(10)
+) = range(9)
+
+ADD_KASB = ADD_LOCATION  # alias (eski kod uchun)
 
 ADD_MANZIL = ADD_LOCATION
 
@@ -49,7 +51,7 @@ def _is_admin(uid: int) -> bool:
 def _main_kb(is_admin: bool):
     return admin_main_menu_kb() if is_admin else user_main_menu_kb()
 
-def _progress(step: int, total: int = 7) -> str:
+def _progress(step: int, total: int = 6) -> str:
     filled = "▓" * step
     empty  = "░" * (total - step)
     return f"[{filled}{empty}] {step}/{total}"
@@ -122,6 +124,10 @@ async def add_telefon2(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     return ADD_LOCATION
 
+async def add_kasb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    # Bu funksiya endi chaqirilmaydi, faqat eski kod uchun qoldirilgan
+    pass
+
 async def _coords_to_address(lat: float, lon: float) -> str:
     """Koordinatalarni aniq manzilga aylantiradi (Nominatim reverse geocoding).
     Qaytaradigan format: Ko'cha, Mahalla, Tuman, Shahar
@@ -173,11 +179,11 @@ async def add_location_geo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(5)}\n\n"
-        f"5️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
+        f"5️⃣ *Savdo turini* tanlang:",
         parse_mode="Markdown",
-        reply_markup=cancel_kb(),
+        reply_markup=savdo_turi_reply_kb(),
     )
-    return ADD_KASB
+    return ADD_SAVDO_TURI
 
 async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Matn orqali manzil: '✍️ Qo'lda kiritish' tugmasi yoki to'g'ridan-to'g'ri matn."""
@@ -195,18 +201,7 @@ async def add_location_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(5)}\n\n"
-        f"5️⃣ *Kasb turi* kiriting:\n_(masalan: Tadbirkor, Fermer, Shifokor...)_",
-        parse_mode="Markdown",
-        reply_markup=cancel_kb(),
-    )
-    return ADD_KASB
-
-async def add_kasb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    ctx.user_data["kasb_turi"] = update.message.text.strip()
-    await update.message.reply_text(
-        f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(6)}\n\n"
-        f"6️⃣ *Savdo turini* tanlang:",
+        f"5️⃣ *Savdo turini* tanlang:",
         parse_mode="Markdown",
         reply_markup=savdo_turi_reply_kb(),
     )
@@ -223,8 +218,8 @@ async def add_savdo_turi_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["savdo_turi"] = turi
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
-        f"{_progress(7)}\n\n"
-        f"7️⃣ *{turi}* — kichik turni tanlang:",
+        f"{_progress(6)}\n\n"
+        f"6️⃣ *{turi}* — kichik turni tanlang:",
         parse_mode="Markdown",
         reply_markup=savdo_subturi_reply_kb(turi),
     )
