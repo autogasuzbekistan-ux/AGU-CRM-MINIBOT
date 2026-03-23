@@ -1,6 +1,8 @@
 import re
 import asyncio
 import logging
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="telegram")
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
