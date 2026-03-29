@@ -20,7 +20,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import ADMIN_IDS, REGION_MAP, REGIONS, SAVDO_COLORS
-from database import get_user, get_clients, get_today_clients
+from database import get_user, get_clients, get_today_clients, get_week_clients, get_month_clients, get_tasks_due_tomorrow
 from keyboards import export_menu_kb, regions_kb
 
 # ─── RANGLAR VA USLUBLAR ──────────────────────────────────────────────────────
@@ -396,3 +396,157 @@ async def get_overdue_tasks_and_notify(app):
         # Hech bo'lmaganda bir adminга yuborilsa, qayta xabar bermaylik
         if sent:
             await mark_task_notified(t["id"])
+
+
+# ─── ERTAGA MUDDATI TUGAYDIGAN VAZIFALAR OGOH ────────────────────────────────
+
+async def notify_tasks_due_tomorrow(app):
+    """Ertaga muddati tugaydigan vazifalar haqida ogoh berish."""
+    tasks = await get_tasks_due_tomorrow()
+    if not tasks:
+        return
+    from datetime import timedelta
+    tomorrow = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    from database import mark_task_notified
+    for t in tasks:
+        client_info = f"\n🔗 Mijoz: *{t['client_ism']}*" if t["client_ism"] else ""
+        msg_text = (
+            f"⚠️ *Ertaga muddati tugaydi!*\n\n"
+            f"📝 *{t['sarlavha']}*{client_info}\n"
+            f"📄 {t['tavsif'] or '—'}\n"
+            f"🗓 Muddat: {t['muddat']}\n"
+            f"🗺 {REGION_MAP.get(t['region_id'], '?')}\n"
+            f"ID: `{t['id']}`\n\n"
+            f"_/vazifa {t['id']} — boshqarish uchun_"
+        )
+        sent = False
+        for admin_id in ADMIN_IDS:
+            try:
+                await app.bot.send_message(chat_id=admin_id, text=msg_text, parse_mode="Markdown")
+                sent = True
+            except Exception as e:
+                logger.warning(f"Ertaga ogoh xato (admin {admin_id}): {e}")
+        if sent:
+            await mark_task_notified(t["id"])
+
+
+# ─── YANGI MIJOZ QUSHILGANDA ADMIN XABARI ────────────────────────────────────
+
+async def notify_admins_new_client(bot, data: dict, region_name: str):
+    """Yangi mijoz qo'shilganda barcha adminlarga matn xabar."""
+    telefon2_line = f"📞 Qo'shimcha: {data.get('telefon2')}\n" if data.get("telefon2") else ""
+    text = (
+        f"🆕 *Yangi mijoz qo'shildi!*\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 *{data.get('ism') or '—'}*\n"
+        f"📞 {data.get('telefon') or '—'}\n"
+        f"{telefon2_line}"
+        f"📍 {data.get('manzil') or '—'}\n"
+        f"🏙 {region_name}\n"
+        f"👤 Qo'shdi: {data.get('qoshgan_nomi') or '—'}"
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(chat_id=admin_id, text=text, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"Yangi mijoz notif xato (admin {admin_id}): {e}")
+
+
+# ─── HAFTALIK HISOBOT (Dushanba 08:00) ───────────────────────────────────────
+
+async def send_weekly_report(app):
+    from datetime import timedelta
+    week_ago = (date.today() - timedelta(days=6)).strftime("%Y-%m-%d")
+    today    = date.today().strftime("%Y-%m-%d")
+    clients  = [dict(c) for c in await get_week_clients(region_id=None)]
+
+    for admin_id in ADMIN_IDS:
+        try:
+            db_user   = await get_user(admin_id)
+            region_id = db_user["region_id"] if db_user else None
+            if region_id:
+                day_clients = [c for c in clients if c["region_id"] == region_id]
+                region_name = REGION_MAP.get(region_id, "Viloyat")
+            else:
+                day_clients = list(clients)
+                region_name = "Barcha viloyatlar"
+
+            if not day_clients:
+                await app.bot.send_message(
+                    chat_id=admin_id,
+                    text=(
+                        f"📊 *Haftalik hisobot — {week_ago} / {today}*\n"
+                        f"🗺 {region_name}\n\n"
+                        f"Bu haftada hech qanday mijoz qo'shilmadi."
+                    ),
+                    parse_mode="Markdown",
+                )
+                continue
+
+            wb     = build_full_excel(day_clients, region_id)
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            await app.bot.send_document(
+                chat_id=admin_id,
+                document=buffer,
+                filename=f"Haftalik_{region_name}_{today}.xlsx",
+                caption=(
+                    f"📊 *Haftalik hisobot — {week_ago} / {today}*\n"
+                    f"🗺 {region_name}\n"
+                    f"👥 Bu hafta qo'shildi: *{len(day_clients)}* ta mijoz"
+                ),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.warning(f"Haftalik hisobot xato (admin {admin_id}): {e}")
+
+
+# ─── OYLIK HISOBOT (Har oy 1-kuni 08:00) ─────────────────────────────────────
+
+async def send_monthly_report(app):
+    month_start = date.today().strftime("%Y-%m-01")
+    today       = date.today().strftime("%Y-%m-%d")
+    month_label = date.today().strftime("%Y-%B")
+    clients     = [dict(c) for c in await get_month_clients(region_id=None)]
+
+    for admin_id in ADMIN_IDS:
+        try:
+            db_user   = await get_user(admin_id)
+            region_id = db_user["region_id"] if db_user else None
+            if region_id:
+                day_clients = [c for c in clients if c["region_id"] == region_id]
+                region_name = REGION_MAP.get(region_id, "Viloyat")
+            else:
+                day_clients = list(clients)
+                region_name = "Barcha viloyatlar"
+
+            if not day_clients:
+                await app.bot.send_message(
+                    chat_id=admin_id,
+                    text=(
+                        f"📊 *Oylik hisobot — {month_label}*\n"
+                        f"🗺 {region_name}\n\n"
+                        f"Bu oyda hech qanday mijoz qo'shilmadi."
+                    ),
+                    parse_mode="Markdown",
+                )
+                continue
+
+            wb     = build_full_excel(day_clients, region_id)
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            await app.bot.send_document(
+                chat_id=admin_id,
+                document=buffer,
+                filename=f"Oylik_{region_name}_{month_label}.xlsx",
+                caption=(
+                    f"📊 *Oylik hisobot — {month_label}*\n"
+                    f"🗺 {region_name}\n"
+                    f"👥 Bu oy qo'shildi: *{len(day_clients)}* ta mijoz"
+                ),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.warning(f"Oylik hisobot xato (admin {admin_id}): {e}")

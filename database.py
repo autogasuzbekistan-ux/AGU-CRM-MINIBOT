@@ -80,6 +80,7 @@ async def init_db():
             "ALTER TABLE tasks ADD COLUMN notified INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN worker_name TEXT",
             "ALTER TABLE clients ADD COLUMN telefon2 TEXT DEFAULT ''",
+            "ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -183,6 +184,71 @@ async def add_client(data: dict) -> int:
         await db.commit()
         return cur.lastrowid
 
+
+async def block_user(telegram_id: int):
+    async with _connect() as db:
+        await db.execute("UPDATE users SET is_blocked = 1 WHERE telegram_id = ?", (telegram_id,))
+        await db.commit()
+
+async def unblock_user(telegram_id: int):
+    async with _connect() as db:
+        await db.execute("UPDATE users SET is_blocked = 0 WHERE telegram_id = ?", (telegram_id,))
+        await db.commit()
+
+async def get_week_clients(region_id=None):
+    """So'nggi 7 kunda qo'shilgan mijozlar."""
+    from datetime import timedelta
+    week_ago = (date.today() - timedelta(days=6)).strftime("%Y-%m-%d")
+    async with _connect() as db:
+        db.row_factory = aiosqlite.Row
+        if region_id:
+            sql    = "SELECT * FROM clients WHERE region_id = ? AND qoshilgan_vaqt >= ? ORDER BY region_id, id"
+            params = (region_id, week_ago)
+        else:
+            sql    = "SELECT * FROM clients WHERE qoshilgan_vaqt >= ? ORDER BY region_id, id"
+            params = (week_ago,)
+        async with db.execute(sql, params) as cur:
+            return await cur.fetchall()
+
+async def get_month_clients(region_id=None):
+    """Joriy oyda qo'shilgan mijozlar."""
+    month_start = date.today().strftime("%Y-%m-01")
+    async with _connect() as db:
+        db.row_factory = aiosqlite.Row
+        if region_id:
+            sql    = "SELECT * FROM clients WHERE region_id = ? AND qoshilgan_vaqt >= ? ORDER BY region_id, id"
+            params = (region_id, month_start)
+        else:
+            sql    = "SELECT * FROM clients WHERE qoshilgan_vaqt >= ? ORDER BY region_id, id"
+            params = (month_start,)
+        async with db.execute(sql, params) as cur:
+            return await cur.fetchall()
+
+async def get_tasks_due_tomorrow():
+    """Ertaga muddati tugaydigan, bajarilmagan va ogohlantirilmagan vazifalar."""
+    from datetime import timedelta
+    tomorrow = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    sql = """
+        SELECT t.*, c.ism as client_ism
+        FROM tasks t LEFT JOIN clients c ON t.client_id = c.id
+        WHERE t.bajarilgan = 0 AND t.muddat IS NOT NULL
+          AND t.muddat LIKE ? AND COALESCE(t.notified, 0) = 0
+    """
+    async with _connect() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(sql, (f"{tomorrow}%",)) as cur:
+            return await cur.fetchall()
+
+async def get_client_by_phone(telefon: str):
+    """Telefon raqam bo'yicha mijoz qidirish (dublikat tekshiruvi uchun)."""
+    async with _connect() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, ism, region_id FROM clients WHERE telefon = ? OR telefon2 = ? LIMIT 1",
+            (telefon, telefon)
+        ) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
 
 async def get_all_user_stats():
     """Har bir foydalanuvchining qo'shgan mijozlar soni va statistikasi."""

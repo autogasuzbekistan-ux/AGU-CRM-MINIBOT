@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from config import ADMIN_IDS, REGION_MAP
 from database import get_user, get_stats
-from keyboards import stats_menu_kb
+from keyboards import stats_menu_kb, BTN_STATS_MANAGERS
 
 def _is_admin(uid: int) -> bool:
     return uid in ADMIN_IDS
@@ -10,10 +10,11 @@ def _is_admin(uid: int) -> bool:
 async def stats_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+    is_admin = _is_admin(update.effective_user.id)
     await update.effective_message.reply_text(
         "📊 *Statistika*\n\nQaysi ko'rsatkichni ko'rmoqchisiz?",
         parse_mode="Markdown",
-        reply_markup=stats_menu_kb(),
+        reply_markup=stats_menu_kb(is_admin=is_admin),
     )
 
 async def stats_general(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -37,19 +38,21 @@ async def stats_general(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             name = t.get("savdo_turi") or "Noma'lum"
             text += f"  • {name}: *{t['cnt']}* ta\n"
 
+    is_admin = _is_admin(update.effective_user.id)
     await update.effective_message.reply_text(
-        text, parse_mode="Markdown", reply_markup=stats_menu_kb()
+        text, parse_mode="Markdown", reply_markup=stats_menu_kb(is_admin=is_admin)
     )
 
 async def stats_by_region(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+    is_admin  = _is_admin(update.effective_user.id)
     stats     = await get_stats(region_id=None)
     by_region = stats["by_region"]
 
     if not by_region:
         await update.effective_message.reply_text(
-            "📊 Hozircha ma'lumot yo'q.", reply_markup=stats_menu_kb()
+            "📊 Hozircha ma'lumot yo'q.", reply_markup=stats_menu_kb(is_admin=is_admin)
         )
         return
 
@@ -59,12 +62,13 @@ async def stats_by_region(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     text = "🗺 *Viloyatlar bo'yicha statistika:*\n\n" + "\n\n".join(lines)
     await update.effective_message.reply_text(
-        text, parse_mode="Markdown", reply_markup=stats_menu_kb()
+        text, parse_mode="Markdown", reply_markup=stats_menu_kb(is_admin=is_admin)
     )
 
 async def stats_by_type(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+    is_admin  = _is_admin(update.effective_user.id)
     db_user   = await get_user(update.effective_user.id)
     region_id = db_user["region_id"] if db_user else None
     stats     = await get_stats(region_id)
@@ -72,7 +76,7 @@ async def stats_by_type(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if not by_type:
         await update.effective_message.reply_text(
-            "📊 Hozircha ma'lumot yo'q.", reply_markup=stats_menu_kb()
+            "📊 Hozircha ma'lumot yo'q.", reply_markup=stats_menu_kb(is_admin=is_admin)
         )
         return
 
@@ -92,12 +96,13 @@ async def stats_by_type(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     text = "🏷 *Savdo turlari bo'yicha:*\n\n" + "\n\n".join(lines)
     await update.effective_message.reply_text(
-        text, parse_mode="Markdown", reply_markup=stats_menu_kb()
+        text, parse_mode="Markdown", reply_markup=stats_menu_kb(is_admin=is_admin)
     )
 
 async def stats_by_grade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         await update.callback_query.answer()
+    is_admin  = _is_admin(update.effective_user.id)
     db_user   = await get_user(update.effective_user.id)
     region_id = db_user["region_id"] if db_user else None
     stats     = await get_stats(region_id)
@@ -105,7 +110,7 @@ async def stats_by_grade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if not by_sub:
         await update.effective_message.reply_text(
-            "📊 Hozircha ma'lumot yo'q.", reply_markup=stats_menu_kb()
+            "📊 Hozircha ma'lumot yo'q.", reply_markup=stats_menu_kb(is_admin=is_admin)
         )
         return
 
@@ -118,5 +123,5 @@ async def stats_by_grade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     text = "🔍 *Kichik turlar bo'yicha:*\n\n" + "\n".join(lines)
     await update.effective_message.reply_text(
-        text, parse_mode="Markdown", reply_markup=stats_menu_kb()
+        text, parse_mode="Markdown", reply_markup=stats_menu_kb(is_admin=is_admin)
     )

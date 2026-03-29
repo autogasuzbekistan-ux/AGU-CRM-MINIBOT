@@ -44,16 +44,21 @@ from handlers.stats import (
 from handlers.export import (
     export_menu, export_my_region, export_all,
     export_choose_region, export_region_selected, send_daily_report,
-    get_overdue_tasks_and_notify,
+    get_overdue_tasks_and_notify, notify_tasks_due_tomorrow,
+    send_weekly_report, send_monthly_report,
 )
-from handlers.admin import admin_users, admin_send_report
+from handlers.admin import (
+    admin_users, admin_send_report,
+    admin_block_toggle, admin_change_manager_region,
+    admin_set_manager_region, admin_manager_stats,
+)
 from keyboards import (
     BTN_CLIENTS, BTN_STATS, BTN_TASKS, BTN_EXPORT, BTN_REGION,
     BTN_USERS, BTN_REPORT,
     BTN_ADD_CLIENT, BTN_SEARCH_CLIENT, BTN_CLIENT_LIST, BTN_MY_CLIENTS,
     BTN_EDIT_CLIENT, BTN_DELETE_CLIENT,
     BTN_ADD_TASK, BTN_ACTIVE_TASKS, BTN_DONE_TASKS,
-    BTN_STATS_GENERAL, BTN_STATS_REGION, BTN_STATS_TYPE, BTN_STATS_SUB,
+    BTN_STATS_GENERAL, BTN_STATS_REGION, BTN_STATS_TYPE, BTN_STATS_SUB, BTN_STATS_MANAGERS,
     BTN_EXPORT_MY, BTN_EXPORT_ALL, BTN_EXPORT_CHOOSE,
     BTN_BACK, BTN_CANCEL,
     BTN_LOCATION_MANUAL,
@@ -201,6 +206,17 @@ def main():
         scheduler.add_job(
             get_overdue_tasks_and_notify, "interval", minutes=30, args=[application]
         )
+        scheduler.add_job(
+            notify_tasks_due_tomorrow, "cron", hour=9, minute=0, args=[application]
+        )
+        # Har dushanba 08:00 da haftalik hisobot
+        scheduler.add_job(
+            send_weekly_report, "cron", day_of_week="mon", hour=8, minute=0, args=[application]
+        )
+        # Har oyning 1-kuni 08:00 da oylik hisobot
+        scheduler.add_job(
+            send_monthly_report, "cron", day=1, hour=8, minute=0, args=[application]
+        )
         scheduler.start()
         logger.info("✅ Scheduler tayyor")
 
@@ -232,13 +248,19 @@ def main():
     # ── Inline callback handlerlar ────────────────────────────────────────────
     app.add_handler(CallbackQueryHandler(noop_callback, pattern="^noop$"))
 
-    async def region_router(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    app.add_handler(CallbackQueryHandler(handle_worker_selection,       pattern=r"^worker_"))
+    app.add_handler(CallbackQueryHandler(admin_block_toggle,            pattern=r"^mgr_(block|unblock)_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin_change_manager_region,   pattern=r"^mgr_region_\d+$"))
+
+    async def region_or_mgr_region(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        """region_ callbackini ikkita maqsad uchun yo'naltirish."""
+        if ctx.user_data.get("mgr_region_for"):
+            return await admin_set_manager_region(update, ctx)
         if ctx.user_data.get("export_choosing"):
             return await export_region_selected(update, ctx)
         return await handle_region_selection(update, ctx)
 
-    app.add_handler(CallbackQueryHandler(handle_worker_selection,    pattern=r"^worker_"))
-    app.add_handler(CallbackQueryHandler(region_router,              pattern=r"^region_"))
+    app.add_handler(CallbackQueryHandler(region_or_mgr_region,          pattern=r"^region_"))
     app.add_handler(CallbackQueryHandler(client_detail_callback,     pattern=r"^client_detail_\d+$"))
     app.add_handler(CallbackQueryHandler(delete_callback,            pattern=r"^del_\d+$"))
     app.add_handler(CallbackQueryHandler(delete_confirm_callback,    pattern=r"^delclient_confirm_\d+$"))
@@ -267,10 +289,11 @@ def main():
     add_txt(BTN_MY_CLIENTS,    my_client_list)
     add_txt(BTN_ACTIVE_TASKS,  task_list)
     add_txt(BTN_DONE_TASKS,    task_done_list)
-    add_txt(BTN_STATS_GENERAL, stats_general)
-    add_txt(BTN_STATS_REGION,  stats_by_region)
-    add_txt(BTN_STATS_TYPE,    stats_by_type)
-    add_txt(BTN_STATS_SUB,     stats_by_grade)
+    add_txt(BTN_STATS_GENERAL,   stats_general)
+    add_txt(BTN_STATS_REGION,    stats_by_region)
+    add_txt(BTN_STATS_TYPE,      stats_by_type)
+    add_txt(BTN_STATS_SUB,       stats_by_grade)
+    add_txt(BTN_STATS_MANAGERS,  admin_manager_stats)
     add_txt(BTN_EXPORT_MY,     export_my_region)
     add_txt(BTN_EXPORT_ALL,    export_all)
     add_txt(BTN_EXPORT_CHOOSE, export_choose_region)

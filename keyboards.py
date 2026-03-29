@@ -25,6 +25,7 @@ BTN_STATS_GENERAL  = "📈 Umumiy statistika"
 BTN_STATS_REGION   = "🗺 Viloyat bo'yicha"
 BTN_STATS_TYPE     = "🏷 Savdo turlari"
 BTN_STATS_SUB      = "🔍 Kichik turlar"
+BTN_STATS_MANAGERS = "👥 Menejerlar reytingi"
 
 BTN_EXPORT_MY      = "📤 Mening viloyatim"
 BTN_EXPORT_ALL     = "🌍 Barcha viloyatlar"
@@ -77,13 +78,16 @@ def tasks_menu_kb() -> ReplyKeyboardMarkup:
         [BTN_BACK],
     ], resize_keyboard=True)
 
-def stats_menu_kb() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup([
+def stats_menu_kb(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    rows = [
         [BTN_STATS_GENERAL],
         [BTN_STATS_REGION, BTN_STATS_TYPE],
         [BTN_STATS_SUB],
-        [BTN_BACK],
-    ], resize_keyboard=True)
+    ]
+    if is_admin:
+        rows.append([BTN_STATS_MANAGERS])
+    rows.append([BTN_BACK])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 def export_menu_kb(is_admin: bool = False) -> ReplyKeyboardMarkup:
     buttons = [[BTN_EXPORT_MY]]
@@ -221,6 +225,15 @@ def task_list_kb(tasks: list) -> InlineKeyboardMarkup:
 # ═══════════════════════════════════════════════════════════════════════════════
 # UMUMIY YORDAMCHI (InlineKeyboard)
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def manager_actions_kb(telegram_id: int, is_blocked: bool) -> InlineKeyboardMarkup:
+    """Har bir menejer uchun admin amallar tugmalari."""
+    block_label = "✅ Blokdan chiqarish" if is_blocked else "🚫 Bloklash"
+    block_cb    = f"mgr_unblock_{telegram_id}" if is_blocked else f"mgr_block_{telegram_id}"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(block_label,        callback_data=block_cb)],
+        [InlineKeyboardButton("🗺 Viloyat o'zgartirish", callback_data=f"mgr_region_{telegram_id}")],
+    ])
 
 def confirm_delete_kb(prefix: str, item_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([

@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from config import ADMIN_IDS, REGION_MAP, SAVDO_TURLARI, SAVDO_SUBTURLARI
 from database import (
-    get_user, add_client, get_clients, search_clients,
+    get_user, add_client, get_clients, search_clients, get_client_by_phone,
     get_client_by_id, update_client, delete_client, count_clients,
     get_my_clients, count_my_clients,
 )
@@ -100,7 +100,19 @@ async def add_ism(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     return ADD_TELEFON
 
 async def add_telefon(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    ctx.user_data["telefon"] = update.message.text.strip()
+    telefon = update.message.text.strip()
+    existing = await get_client_by_phone(telefon)
+    if existing:
+        await update.message.reply_text(
+            f"⚠️ *Bu telefon raqam allaqachon mavjud!*\n"
+            f"👤 Mijoz: *{existing['ism'] or '—'}*\n"
+            f"🆔 /mijoz {existing['id']}\n\n"
+            f"Boshqa raqam kiriting:",
+            parse_mode="Markdown",
+            reply_markup=cancel_kb(),
+        )
+        return ADD_TELEFON
+    ctx.user_data["telefon"] = telefon
     await update.message.reply_text(
         f"➕ *Yangi mijoz qo'shish*\n"
         f"{_progress(3)}\n\n"
@@ -276,10 +288,12 @@ async def _save_client(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     # Google Sheets sync (background — xato bot'ni to'xtatmaydi)
     from sheets import sync_client_to_sheet, update_stats_sheet
     from database import get_all_user_stats
+    from handlers.export import notify_admins_new_client
     region_name = REGION_MAP.get(region_id, "Noma'lum")
     asyncio.ensure_future(sync_client_to_sheet(dict(data), region_name))
     stats = await get_all_user_stats()
     asyncio.ensure_future(update_stats_sheet(stats))
+    asyncio.ensure_future(notify_admins_new_client(ctx.bot, dict(data), region_name))
 
     username_display = f"@{user.username}" if user.username else f"ID:{user.id}"
     telefon2_line = f"📞 Qo'shimcha: {_esc(data['telefon2'])}\n" if data.get("telefon2") else ""
