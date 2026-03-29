@@ -60,7 +60,7 @@ async def admin_users(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         region    = _esc(REGION_MAP.get(u["region_id"], "—") if u["region_id"] else "—")
         full_name = _esc(u["full_name"] or "—")
         username  = _esc(u["username"] or "—")
-        is_blocked = bool(u.get("is_blocked", 0))
+        is_blocked = bool(u["is_blocked"])
         status_icon = "🔴" if is_blocked else "🟢"
         text = (
             f"{status_icon} <b>{full_name}</b> (@{username})\n"

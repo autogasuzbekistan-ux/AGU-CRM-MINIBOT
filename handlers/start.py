@@ -32,7 +32,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     db_user = await get_user(user.id)
 
-    if db_user and db_user.get("is_blocked") and not is_admin:
+    if db_user and db_user["is_blocked"] and not is_admin:
         await update.effective_message.reply_text(
             "🚫 Sizning hisobingiz bloklangan. Admin bilan bog'laning."
         )
