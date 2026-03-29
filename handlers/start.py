@@ -1,9 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from config import ADMIN_IDS, REGION_MAP, REGION_WORKERS
+from config import ADMIN_IDS, REGION_MAP
 from database import get_user, upsert_user, set_user_region, set_worker_name
 from keyboards import (
-    admin_main_menu_kb, user_main_menu_kb, regions_kb, workers_kb,
+    admin_main_menu_kb, user_main_menu_kb, regions_kb,
     BTN_CANCEL,
 )
 
@@ -49,23 +49,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
 
     region_name  = REGION_MAP.get(db_user["region_id"], "Barcha shaharlar 🌍")
-    worker_name  = db_user["worker_name"] if db_user["worker_name"] else None
-
-    # Admin bo'lmagan va worker_name yo'q bo'lsa — ishchi tanlash
-    if not is_admin and not worker_name:
-        workers = REGION_WORKERS.get(db_user["region_id"], [])
-        if len(workers) > 1:
-            await update.effective_message.reply_text(
-                f"🏙 <b>{_esc(region_name)}</b>\n\n"
-                f"👤 Iltimos, o'z ismingizni tanlang:",
-                parse_mode="HTML",
-                reply_markup=workers_kb(db_user["region_id"]),
-            )
-            return
-        elif len(workers) == 1:
-            # Bitta ishchi — avtomatik o'rnatish
-            await set_worker_name(user.id, workers[0])
-            worker_name = workers[0]
+    worker_name  = db_user["worker_name"] or user.full_name
 
     if is_admin:
         text = (
@@ -117,20 +101,6 @@ async def handle_region_selection(update: Update, ctx: ContextTypes.DEFAULT_TYPE
         full_name=user.full_name,
         role="admin" if is_admin else "manager",
     )
-
-    # Admin emas va bir nechta ishchi bor → ishchi tanlash
-    if not is_admin and region_id:
-        workers = REGION_WORKERS.get(region_id, [])
-        if len(workers) > 1:
-            await query.message.reply_text(
-                f"🏙 <b>{_esc(region_name)}</b>\n\n"
-                f"👤 Iltimos, o'z ismingizni tanlang:",
-                parse_mode="HTML",
-                reply_markup=workers_kb(region_id),
-            )
-            return
-        elif len(workers) == 1:
-            await set_worker_name(user.id, workers[0])
 
     if is_admin:
         text = (
